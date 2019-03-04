@@ -48,6 +48,37 @@ function headerCheck($line){
 	return (fgets($line) == ".IPPcode19\n");
 }
 
+function variableCheck($word){
+	$typeAndValue = explode ("@", $word);
+	$constantsArr = array("string","int", "bool");
+
+	if (count($typeAndValue) != 2){
+		//error invalid format
+	}
+
+	switch ($typeAndValue[0]) {
+		case 'string':
+			//replace escape sequences
+			return "string";
+			break;
+		case 'int':
+			return "int";
+			break;
+		case 'bool':
+			return "bool";
+			break;
+		case "GF":
+		case "TF":
+		case "LF":
+			return "var";
+			break;
+		default:
+			//return error
+			return false;
+			break;
+	}
+}
+
 function checkLine($line){
 	$line_arr = explode(' ',trim($line));
 
@@ -58,7 +89,7 @@ function checkLine($line){
 		case $keyWords[19]: //INT2CHAR 3
 		case $keyWords[24]: //STRLEN
 		case $keyWords[27]: //TYPE
-			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], "symb", $line_arr[2]);
+			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], variableCheck($line_arr[2]), $line_arr[2]);
 			break;
 		case $keyWords[1]: //CREATEFRAME 0
 		case $keyWords[2]: //PUSHFRAME 0
@@ -76,7 +107,7 @@ function checkLine($line){
 			break;
 		case $keyWords[7]: //PUSHS 1
 		case $keyWords[22]: //WRITE
-			printResult(strtoupper($line_arr[0]), "symb", $line_arr[1]);
+			printResult(strtoupper($line_arr[0]), variableCheck($line_arr[1]), $line_arr[1]);
 			break;
 		case $keyWords[9]: //ADD 3
 		case $keyWords[10]: //SUB 3
@@ -92,9 +123,7 @@ function checkLine($line){
 		case $keyWords[23]: //CONCAT
 		case $keyWords[25]: //GETCHAR
 		case $keyWords[26]: //SETCHAR
-			$typeAndValue1 = explode ("@", $line_arr[2]);
-			$typeAndValue2 = explode ("@", $line_arr[3]);
-			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], "symb", $line_arr[2], "symb", $line_arr[3]);
+			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], variableCheck($line_arr[2]), $line_arr[2], variableCheck($line_arr[3]), $line_arr[3]);
 			break;
 		case $keyWords[21]: //READ 2
 			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], "type", $line_arr[2]);
@@ -105,11 +134,11 @@ function checkLine($line){
 			break;
 		case $keyWords[30]: //JUMPIFEQ
 		case $keyWords[31]: //JUMPIFNEQ
-			printResult(strtoupper($line_arr[0]), "label", $line_arr[1], "symb", $line_arr[2], "symb", $line_arr[3]);
+			printResult(strtoupper($line_arr[0]), "label", $line_arr[1], variableCheck($line_arr[2]), $line_arr[2], variableCheck($line_arr[3]), $line_arr[3]);
 			break;
 		case $keyWords[32]: //EXIT
 		case $keyWords[33]: //DPRINT
-			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], "symb", $line_arr[2], "symb", $line_arr[3]);
+			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], variableCheck($line_arr[2]), $line_arr[2], variableCheck($line_arr[3]), $line_arr[3]);
 			break;
 		default:
 			if ($line_arr[0][0] != '#'){
@@ -119,6 +148,9 @@ function checkLine($line){
     }
 }
 
+/**
+Function that prints output on XML format.
+*/
 function printResult($instruction, $arg1type = NULL, $arg1data = "", $arg2type = NULL, $arg2data = "", $arg3type = NULL, $arg3data = ""){
 
     global $domDocument;
@@ -166,13 +198,20 @@ function printResult($instruction, $arg1type = NULL, $arg1data = "", $arg2type =
     }
 }
 
+/**
+Error handling function
+*/
 function errorHandel($errorNum){
 	fwrite(STDERR, $errorNum."\n");
 	exit($errorNum);
 }
 
+/**
+function which prints HELP
+*/
+
 function printHelp(){
-	echo "this is HELP\n";
+	echo "Help!\nI need somebody\nhelp\nnot just anybody\nhelp\nyou know I need someone\nHELP\n";
 	exit(0);
 }
 
