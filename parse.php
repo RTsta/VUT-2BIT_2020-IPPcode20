@@ -34,6 +34,9 @@ while ($line = fgets($input)){
 echo $domDocument->saveXML();
 
 //--------------------------------------------------------------------------------------------------
+function commentCheck($word){
+	return $word[0] == '#' ? true : false;
+}
 
 function argumentsCheck($arguments){
 	if (count($arguments) == 2 && $arguments[1] == "--help"){
@@ -72,6 +75,9 @@ function variableCheck($word){
 		case "LF":
 			return "var";
 			break;
+		case "nil":
+			return "nil";
+			break;
 		default:
 			//return error
 			return false;
@@ -89,6 +95,12 @@ function checkLine($line){
 		case $keyWords[19]: //INT2CHAR 3
 		case $keyWords[24]: //STRLEN
 		case $keyWords[27]: //TYPE
+			if ( (count($line_arr) > 3 && !commentCheck($line_arr[3]) ) || (count($line_arr) < 3) ){
+				errorHandel(22);
+			}
+			if ( commentCheck($line_arr[1]) || commentCheck($line_arr[2]) ){
+				errorHandel(22);
+			}
 			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], variableCheck($line_arr[2]), $line_arr[2]);
 			break;
 		case $keyWords[1]: //CREATEFRAME 0
@@ -96,17 +108,38 @@ function checkLine($line){
 		case $keyWords[3]: //POPFRAME 0
 		case $keyWords[6]: //RETURN 0
 		case $keyWords[34]: //BREAK
+			if ((count($line_arr) > 1 && !commentCheck($line_arr[1]) ) || (count($line_arr) < 1) ){
+				errorHandel(22);
+			}
 			printResult(strtoupper($line_arr[0]));
 			break;
 		case $keyWords[4]: //DEFVAR 1
 		case $keyWords[8]: //POPS 2
+			if ((count($line_arr) > 2 && !commentCheck($line_arr[2]) ) || (count($line_arr) < 2) ){
+				errorHandel(22);
+			}
+			if ( commentCheck($line_arr[1]) ){
+				errorHandel(22);
+			}
 			printResult(strtoupper($line_arr[0]), "var", $line_arr[1]);
 			break;
 		case $keyWords[5]: //CALL 1
+			if ((count($line_arr) > 2 && !commentCheck($line_arr[2]) ) || (count($line_arr) < 2) ){
+				errorHandel(22);
+			}
+			if ( commentCheck($line_arr[1])){
+				errorHandel(22);
+			}
 			printResult(strtoupper($line_arr[0]), "label", $line_arr[1]);
 			break;
 		case $keyWords[7]: //PUSHS 1
 		case $keyWords[22]: //WRITE
+			if ((count($line_arr) > 2 && !commentCheck($line_arr[2]) ) || (count($line_arr) < 2) ){
+				errorHandel(22);
+			}
+			if ( commentCheck($line_arr[1])){
+				errorHandel(22);
+			}
 			printResult(strtoupper($line_arr[0]), variableCheck($line_arr[1]), $line_arr[1]);
 			break;
 		case $keyWords[9]: //ADD 3
@@ -123,25 +156,55 @@ function checkLine($line){
 		case $keyWords[23]: //CONCAT
 		case $keyWords[25]: //GETCHAR
 		case $keyWords[26]: //SETCHAR
+			if ((count($line_arr) > 4 && !commentCheck($line_arr[4]) ) || (count($line_arr) < 4) ){
+				errorHandel(22);
+			}
+			if ( commentCheck($line_arr[1]) || commentCheck($line_arr[2]) || commentCheck($line_arr[3]) ){
+				errorHandel(22);
+			}
 			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], variableCheck($line_arr[2]), $line_arr[2], variableCheck($line_arr[3]), $line_arr[3]);
 			break;
 		case $keyWords[21]: //READ 2
+			if ((count($line_arr) > 3 && !commentCheck($line_arr[3]) ) || (count($line_arr) < 3) ){
+				errorHandel(22);
+			}
+			if ( commentCheck($line_arr[1]) || commentCheck($line_arr[2]) ){
+				errorHandel(22);
+			}
 			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], "type", $line_arr[2]);
 			break;
 		case $keyWords[28]: //LABEL
 		case $keyWords[29]: //JUMP
+			if ((count($line_arr) > 2 && !commentCheck($line_arr[2]) ) || (count($line_arr) < 2) ){
+				errorHandel(22);
+			}
+			if ( commentCheck($line_arr[1]) ){
+				errorHandel(22);
+			}
 			printResult(strtoupper($line_arr[0]), "label", $line_arr[1]);
 			break;
 		case $keyWords[30]: //JUMPIFEQ
 		case $keyWords[31]: //JUMPIFNEQ
+			if ((count($line_arr) > 4 && !commentCheck($line_arr[4]) ) || (count($line_arr) < 4) ){
+				errorHandel(22);
+			}
+			if ( commentCheck($line_arr[1]) || commentCheck($line_arr[2]) || commentCheck($line_arr[3]) ){
+				errorHandel(22);
+			}
 			printResult(strtoupper($line_arr[0]), "label", $line_arr[1], variableCheck($line_arr[2]), $line_arr[2], variableCheck($line_arr[3]), $line_arr[3]);
 			break;
 		case $keyWords[32]: //EXIT
 		case $keyWords[33]: //DPRINT
-			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], variableCheck($line_arr[2]), $line_arr[2], variableCheck($line_arr[3]), $line_arr[3]);
+			if ((count($line_arr) > 2 && !commentCheck($line_arr[2]) ) || (count($line_arr) < 2) ){
+				errorHandel(22);
+			}
+			if ( commentCheck($line_arr[1]) ){
+				errorHandel(22);
+			}
+			printResult(strtoupper($line_arr[0]), variableCheck($line_arr[1]), $line_arr[1]);
 			break;
 		default:
-			if ($line_arr[0][0] != '#'){
+			if ( !commentCheck($line_arr[0]) ){
 				errorHandel(22);
 			}
 			break;

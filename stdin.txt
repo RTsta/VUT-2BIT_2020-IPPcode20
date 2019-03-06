@@ -4,5 +4,5 @@ DEFVAR TF@x
 CREATEFRAME # příklad instrukce bez operandů, v XML možný zápis zkráceným způsobem
 WRITE TF@x
 POPFRAME # tato instrukce bude pro ilustraci ve výstupním XML zapsána druhým možným způsobem
-READ TF@x 
+READ TF@x string
 Write string@ahoj
