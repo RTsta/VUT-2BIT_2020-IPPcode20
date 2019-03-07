@@ -48,7 +48,11 @@ function argumentsCheck($arguments){
 }
 
 function headerCheck($line){
-	return (fgets($line) == ".IPPcode19\n");
+	$line1 = fgets($line);
+	if ($line1 == ".IPPcode19\n" || preg_match("/^\.IPPcode19\s*#/", $line1)){
+		return true;
+	}
+	return false;
 }
 
 function variableCheck($word){
@@ -86,8 +90,8 @@ function variableCheck($word){
 }
 
 function checkLine($line){
+	$line = preg_replace('/\s+/', ' ',$line);
 	$line_arr = explode(' ',trim($line));
-
 	$keyWords = array("MOVE", "CREATEFRAME", "PUSHFRAME", "POPFRAME", "DEFVAR", "CALL", "RETURN", "PUSHS", "POPS", "ADD", "SUB", "MUL", "IDIV", "LT" ,"GT" ,"EQ", "AND", "OR", "NOT", "INT2CHAR", "STRI2INT", "READ", "WRITE", "CONCAT", "STRLEN", "GETCHAR", "SETCHAR", "TYPE", "LABEL", "JUMP", "JUMPIFEQ", "JUMPIFNEQ", "EXIT", "DPRINT", "BREAK");
 
 	switch (strtoupper($line_arr[0])){
