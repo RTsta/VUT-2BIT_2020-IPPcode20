@@ -5,4 +5,4 @@ CREATEFRAME # příklad instrukce bez operandů, v XML možný zápis zkrácený
 WRITE  TF@x
 POPFRAME # tato instrukce bude pro ilustraci ve výstupním XML zapsána druhým možným způsobem
 READ TF@x string
-Write string@ahoj
+Write string@ahoj\077ahoj

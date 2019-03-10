@@ -2,7 +2,6 @@
 $input = STDIN;
 $order = 1;
 
-//@todo kontrola argumentu (--help)
 argumentsCheck($argv);
 
 if (posix_isatty($input)){
@@ -21,7 +20,7 @@ if (headerCheck($input)){
 	$domDocument->appendChild($domProgram);
 
 	$domLanguage = $domDocument->createAttribute('language');
-	$domLanguage->value = '.IPPcode19';
+	$domLanguage->value = 'IPPcode19';
 	$domProgram->appendChild($domLanguage);
 } else {
 	errorHandel(21);
@@ -66,7 +65,6 @@ function headerCheck($line){
 
 function variableCheck($word){
 	$typeAndValue = explode ("@", $word);
-		echo "--------------------------->".$typeAndValue[1]."<-----------------------\n";
 	$typeAndValue[1] = preg_replace('/\#[A-z]*/', "", $typeAndValue[1]);
 	$constantsArr = array("string","int", "bool");
 
@@ -78,13 +76,13 @@ function variableCheck($word){
 		case 'string':
 			for ($i = 0; $i < strlen($typeAndValue[1]); $i++){
 				if ($typeAndValue[1][$i] == '\\' && is_numeric($typeAndValue[1][$i+1]) && is_numeric($typeAndValue[1][$i+2]) && is_numeric($typeAndValue[1][$i+3]) ){
-					$tmp = $typeAndValue[1][$i].$typeAndValue[1][$i+1].$typeAndValue[1][$i+2].$typeAndValue[1][$i+3];
-					$tmp = (int) $tmp;
-					$typeAndValue[1][$i] = chr($tmp);
+					$tmp = $typeAndValue[1][$i+1].$typeAndValue[1][$i+2].$typeAndValue[1][$i+3];
+					$typeAndValue[1][$i] = convertStrNumberToChar($tmp);
 
 					for ($j = $i+1; $j < strlen($typeAndValue[1])-3; $j++){
 						$typeAndValue[1][$j] = $typeAndValue[1][$j+3];
 					}
+					$typeAndValue[1] = substr($typeAndValue[1], 0, -3);
 				}
 			}
 			return $typeAndValue;
@@ -143,7 +141,6 @@ function checkLine($line){
 			break;
 		case $keyWords[7]: //PUSHS 1
 		case $keyWords[22]: //WRITE
-			echo $line_arr[1]."\n";
 			numberOfArgumentsOnLineCheck($line_arr, 1);
 			$printableResult1 = variableCheck($line_arr[1]);
 			printResult(strtoupper($line_arr[0]), $printableResult1[0], $printableResult1[1]);
@@ -256,38 +253,41 @@ function errorHandel($errorNum){
 }
 
 /**
-function which prints HELP
+Function that handles wether there is an appropriate number of argument on line.
+Also chescking, wether the arguments are valid.
 */
 function numberOfArgumentsOnLineCheck($line_arr, $noOfArgumentsItTakes){
 	$count = count($line_arr);
-	echo $line_arr[0]." ".$line_arr[1]."\n";
 	if ($count != $noOfArgumentsItTakes+1){
 		if ($count < $noOfArgumentsItTakes+1){
 			errorHandel(22);
 		}
-		echo "ano\n";
 
 		if ($count > $noOfArgumentsItTakes+1){
 			if ( !(commentCheck($line_arr[$noOfArgumentsItTakes+1]) || (strpos($line_arr[$noOfArgumentsItTakes],"#") !== false)) ){
-				echo "tady\n";
 				errorHandel(22);
 			}
 		}
 	}
 
-	echo "ne\n";
 	for ($i = $noOfArgumentsItTakes; $i > 0 ; $i--){
-		echo $line_arr[$i]."\n";
 		if (commentCheck($line_arr[$i])){
 			errorHandel(22);
 		}
 	}
-	echo "ok\n";
 }
 
+/*
+Printing help
+*/
 function printHelp(){
 	echo "Help!\nI need somebody\nhelp\nnot just anybody\nhelp\nyou know I need someone\nHELP\n";
 	exit(0);
+}
+
+function convertStrNumberToChar($strNumber){
+	$strNumber = ltrim($strNumber, '0');
+	return chr($strNumber);
 }
 
 ?>
