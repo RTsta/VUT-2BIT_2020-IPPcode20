@@ -34,10 +34,16 @@ while ($line = fgets($input)){
 echo $domDocument->saveXML();
 
 //--------------------------------------------------------------------------------------------------
+/*
+	Chcecking if the givven word is beginig of comment or not
+*/
 function commentCheck($word){
 	return $word[0] == '#' ? true : false;
 }
 
+/*
+	Function loads arguments and runs appropriate methods depadnding on the arguments
+*/
 function argumentsCheck($arguments){
 	if (count($arguments) == 2 && $arguments[1] == "--help"){
 		printHelp();
@@ -47,6 +53,9 @@ function argumentsCheck($arguments){
 
 }
 
+/*
+	Checking if the file in SRDIN includes header ".IPPcode19"
+*/
 function headerCheck($line){
 	$line1 = fgets($line);
 	if ($line1 == ".IPPcode19\n" || preg_match("/^\.IPPcode19\s*#/", $line1)){
@@ -57,6 +66,8 @@ function headerCheck($line){
 
 function variableCheck($word){
 	$typeAndValue = explode ("@", $word);
+		echo "--------------------------->".$typeAndValue[1]."<-----------------------\n";
+	$typeAndValue[1] = preg_replace('/\#[A-z]*/', "", $typeAndValue[1]);
 	$constantsArr = array("string","int", "bool");
 
 	if (count($typeAndValue) != 2){
@@ -65,26 +76,34 @@ function variableCheck($word){
 
 	switch ($typeAndValue[0]) {
 		case 'string':
-			//replace escape sequences
-			return "string";
+			for ($i = 0; $i < strlen($typeAndValue[1]); $i++){
+				if ($typeAndValue[1][$i] == '\\' && is_numeric($typeAndValue[1][$i+1]) && is_numeric($typeAndValue[1][$i+2]) && is_numeric($typeAndValue[1][$i+3]) ){
+					$tmp = $typeAndValue[1][$i].$typeAndValue[1][$i+1].$typeAndValue[1][$i+2].$typeAndValue[1][$i+3];
+					$tmp = (int) $tmp;
+					$typeAndValue[1][$i] = chr($tmp);
+
+					for ($j = $i+1; $j < strlen($typeAndValue[1])-3; $j++){
+						$typeAndValue[1][$j] = $typeAndValue[1][$j+3];
+					}
+				}
+			}
+			return $typeAndValue;
 			break;
 		case 'int':
-			return "int";
-			break;
+			return $typeAndValue;
 		case 'bool':
-			return "bool";
+			$typeAndValue[1] = strtolower($typeAndValue[1]);
+			return $typeAndValue;
 			break;
 		case "GF":
 		case "TF":
 		case "LF":
-			return "var";
-			break;
+			$typeAndValue[1] = $typeAndValue[0]."@".$typeAndValue[1];
+			$typeAndValue[0] = "var";
+			return $typeAndValue;
 		case "nil":
-			return "nil";
-			break;
+			return $typeAndValue;
 		default:
-			//return error
-			return false;
 			break;
 	}
 }
@@ -94,57 +113,40 @@ function checkLine($line){
 	$line_arr = explode(' ',trim($line));
 	$keyWords = array("MOVE", "CREATEFRAME", "PUSHFRAME", "POPFRAME", "DEFVAR", "CALL", "RETURN", "PUSHS", "POPS", "ADD", "SUB", "MUL", "IDIV", "LT" ,"GT" ,"EQ", "AND", "OR", "NOT", "INT2CHAR", "STRI2INT", "READ", "WRITE", "CONCAT", "STRLEN", "GETCHAR", "SETCHAR", "TYPE", "LABEL", "JUMP", "JUMPIFEQ", "JUMPIFNEQ", "EXIT", "DPRINT", "BREAK");
 
+	//regex pattern @([A-z]+) kterů použiji na argumenty, které tisknu a ještě z nich musím oddělat zavináč a nahradit všechny divný znaky
+
 	switch (strtoupper($line_arr[0])){
 		case $keyWords[0]: //MOVE 2
 		case $keyWords[19]: //INT2CHAR 3
 		case $keyWords[24]: //STRLEN
 		case $keyWords[27]: //TYPE
-			if ( (count($line_arr) > 3 && !commentCheck($line_arr[3]) ) || (count($line_arr) < 3) ){
-				errorHandel(22);
-			}
-			if ( commentCheck($line_arr[1]) || commentCheck($line_arr[2]) ){
-				errorHandel(22);
-			}
-			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], variableCheck($line_arr[2]), $line_arr[2]);
+			numberOfArgumentsOnLineCheck($line_arr, 2);
+			$printableResult1 = variableCheck($line_arr[2]);
+			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], $printableResult1[0], $printableResult1[1]);
 			break;
 		case $keyWords[1]: //CREATEFRAME 0
 		case $keyWords[2]: //PUSHFRAME 0
 		case $keyWords[3]: //POPFRAME 0
 		case $keyWords[6]: //RETURN 0
 		case $keyWords[34]: //BREAK
-			if ((count($line_arr) > 1 && !commentCheck($line_arr[1]) ) || (count($line_arr) < 1) ){
-				errorHandel(22);
-			}
+			numberOfArgumentsOnLineCheck($line_arr, 0);
 			printResult(strtoupper($line_arr[0]));
 			break;
 		case $keyWords[4]: //DEFVAR 1
 		case $keyWords[8]: //POPS 2
-			if ((count($line_arr) > 2 && !commentCheck($line_arr[2]) ) || (count($line_arr) < 2) ){
-				errorHandel(22);
-			}
-			if ( commentCheck($line_arr[1]) ){
-				errorHandel(22);
-			}
+			numberOfArgumentsOnLineCheck($line_arr, 1);
 			printResult(strtoupper($line_arr[0]), "var", $line_arr[1]);
 			break;
 		case $keyWords[5]: //CALL 1
-			if ((count($line_arr) > 2 && !commentCheck($line_arr[2]) ) || (count($line_arr) < 2) ){
-				errorHandel(22);
-			}
-			if ( commentCheck($line_arr[1])){
-				errorHandel(22);
-			}
+			numberOfArgumentsOnLineCheck($line_arr, 1);
 			printResult(strtoupper($line_arr[0]), "label", $line_arr[1]);
 			break;
 		case $keyWords[7]: //PUSHS 1
 		case $keyWords[22]: //WRITE
-			if ((count($line_arr) > 2 && !commentCheck($line_arr[2]) ) || (count($line_arr) < 2) ){
-				errorHandel(22);
-			}
-			if ( commentCheck($line_arr[1])){
-				errorHandel(22);
-			}
-			printResult(strtoupper($line_arr[0]), variableCheck($line_arr[1]), $line_arr[1]);
+			echo $line_arr[1]."\n";
+			numberOfArgumentsOnLineCheck($line_arr, 1);
+			$printableResult1 = variableCheck($line_arr[1]);
+			printResult(strtoupper($line_arr[0]), $printableResult1[0], $printableResult1[1]);
 			break;
 		case $keyWords[9]: //ADD 3
 		case $keyWords[10]: //SUB 3
@@ -160,52 +162,32 @@ function checkLine($line){
 		case $keyWords[23]: //CONCAT
 		case $keyWords[25]: //GETCHAR
 		case $keyWords[26]: //SETCHAR
-			if ((count($line_arr) > 4 && !commentCheck($line_arr[4]) ) || (count($line_arr) < 4) ){
-				errorHandel(22);
-			}
-			if ( commentCheck($line_arr[1]) || commentCheck($line_arr[2]) || commentCheck($line_arr[3]) ){
-				errorHandel(22);
-			}
-			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], variableCheck($line_arr[2]), $line_arr[2], variableCheck($line_arr[3]), $line_arr[3]);
+			numberOfArgumentsOnLineCheck($line_arr, 3);
+			$printableResult1 = variableCheck($line_arr[2]);
+			$printableResult2 = variableCheck($line_arr[3]);
+			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], $printableResult1[0], $printableResult1[1], $printableResult2[0], $printableResult2[1] );
 			break;
 		case $keyWords[21]: //READ 2
-			if ((count($line_arr) > 3 && !commentCheck($line_arr[3]) ) || (count($line_arr) < 3) ){
-				errorHandel(22);
-			}
-			if ( commentCheck($line_arr[1]) || commentCheck($line_arr[2]) ){
-				errorHandel(22);
-			}
+			numberOfArgumentsOnLineCheck($line_arr, 2);
 			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], "type", $line_arr[2]);
 			break;
 		case $keyWords[28]: //LABEL
 		case $keyWords[29]: //JUMP
-			if ((count($line_arr) > 2 && !commentCheck($line_arr[2]) ) || (count($line_arr) < 2) ){
-				errorHandel(22);
-			}
-			if ( commentCheck($line_arr[1]) ){
-				errorHandel(22);
-			}
+			numberOfArgumentsOnLineCheck($line_arr, 1);
 			printResult(strtoupper($line_arr[0]), "label", $line_arr[1]);
 			break;
 		case $keyWords[30]: //JUMPIFEQ
 		case $keyWords[31]: //JUMPIFNEQ
-			if ((count($line_arr) > 4 && !commentCheck($line_arr[4]) ) || (count($line_arr) < 4) ){
-				errorHandel(22);
-			}
-			if ( commentCheck($line_arr[1]) || commentCheck($line_arr[2]) || commentCheck($line_arr[3]) ){
-				errorHandel(22);
-			}
-			printResult(strtoupper($line_arr[0]), "label", $line_arr[1], variableCheck($line_arr[2]), $line_arr[2], variableCheck($line_arr[3]), $line_arr[3]);
+			numberOfArgumentsOnLineCheck($line_arr, 3);
+			$printableResult1 = variableCheck($line_arr[2]);
+			$printableResult2 = variableCheck($line_arr[3]);
+			printResult(strtoupper($line_arr[0]), "label", $line_arr[1], $printableResult1[0], $printableResult1[1], $printableResult2[0], $printableResult2[1] );
 			break;
 		case $keyWords[32]: //EXIT
 		case $keyWords[33]: //DPRINT
-			if ((count($line_arr) > 2 && !commentCheck($line_arr[2]) ) || (count($line_arr) < 2) ){
-				errorHandel(22);
-			}
-			if ( commentCheck($line_arr[1]) ){
-				errorHandel(22);
-			}
-			printResult(strtoupper($line_arr[0]), variableCheck($line_arr[1]), $line_arr[1]);
+			numberOfArgumentsOnLineCheck($line_arr, 1);
+			$printableResult1 = variableCheck($line_arr[2]);
+			printResult(strtoupper($line_arr[0]), $printableResult1[0], $printableResult1[1]);
 			break;
 		default:
 			if ( !commentCheck($line_arr[0]) ){
@@ -276,6 +258,32 @@ function errorHandel($errorNum){
 /**
 function which prints HELP
 */
+function numberOfArgumentsOnLineCheck($line_arr, $noOfArgumentsItTakes){
+	$count = count($line_arr);
+	echo $line_arr[0]." ".$line_arr[1]."\n";
+	if ($count != $noOfArgumentsItTakes+1){
+		if ($count < $noOfArgumentsItTakes+1){
+			errorHandel(22);
+		}
+		echo "ano\n";
+
+		if ($count > $noOfArgumentsItTakes+1){
+			if ( !(commentCheck($line_arr[$noOfArgumentsItTakes+1]) || (strpos($line_arr[$noOfArgumentsItTakes],"#") !== false)) ){
+				echo "tady\n";
+				errorHandel(22);
+			}
+		}
+	}
+
+	echo "ne\n";
+	for ($i = $noOfArgumentsItTakes; $i > 0 ; $i--){
+		echo $line_arr[$i]."\n";
+		if (commentCheck($line_arr[$i])){
+			errorHandel(22);
+		}
+	}
+	echo "ok\n";
+}
 
 function printHelp(){
 	echo "Help!\nI need somebody\nhelp\nnot just anybody\nhelp\nyou know I need someone\nHELP\n";
