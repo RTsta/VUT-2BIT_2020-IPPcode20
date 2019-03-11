@@ -198,7 +198,6 @@ function checkLine($line){
 Function that prints output on XML format.
 */
 function printResult($instruction, $arg1type = NULL, $arg1data = "", $arg2type = NULL, $arg2data = "", $arg3type = NULL, $arg3data = ""){
-
     global $domDocument;
     global $domProgram;
     global $order;
@@ -214,6 +213,8 @@ function printResult($instruction, $arg1type = NULL, $arg1data = "", $arg2type =
     $domInstruction->appendChild($domOpcode);
 
     if ($arg1type != NULL){
+    	$arg1data = htmlspecialchars($arg1data, ENT_QUOTES | ENT_XML1, 'UTF-8');
+        
         $domArg1 = $domDocument->createElement('arg1');
         $domArg1->nodeValue = $arg1data;
         $domInstruction->appendChild($domArg1);
@@ -224,6 +225,8 @@ function printResult($instruction, $arg1type = NULL, $arg1data = "", $arg2type =
     }
 
     if ($arg1type != NULL && $arg2type != NULL) {
+    	$arg2data = htmlspecialchars($arg2data, ENT_QUOTES | ENT_XML1, 'UTF-8');
+        
         $domArg2 = $domDocument->createElement('arg2');
         $domArg2->nodeValue = $arg2data;
         $domInstruction->appendChild($domArg2);
@@ -234,6 +237,8 @@ function printResult($instruction, $arg1type = NULL, $arg1data = "", $arg2type =
     }
 
     if ($arg1type != NULL && $arg2type != NULL && $arg3type != NULL){
+    	$arg3data = htmlspecialchars($arg3data, ENT_QUOTES | ENT_XML1, 'UTF-8');
+
         $domArg3 = $domDocument->createElement('arg3');
         $domArg3->nodeValue = $arg3data;
         $domInstruction->appendChild($domArg3);
