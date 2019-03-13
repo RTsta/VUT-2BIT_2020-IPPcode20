@@ -56,8 +56,10 @@ function argumentsCheck($arguments){
 	Checking if the file in SRDIN includes header ".IPPcode19"
 */
 function headerCheck($line){
-	$line1 = fgets($line);
-	if ($line1 == ".IPPcode19\n" || preg_match("/^\.IPPcode19\s*#/", $line1)){
+	$line1 = strtoupper(fgets($line));
+	$line1 = preg_replace('/\s+/', '',$line1);
+
+	if ($line1 == ".IPPCODE19\n" || $line1 == ".IPPCODE19" || preg_match("/^\.IPPCODE19\s*#/", $line1)){
 		return true;
 	}
 	return false;
@@ -67,7 +69,6 @@ function variableCheck($word){
 	$typeAndValue = explode ("@", $word);
 	$typeAndValue[1] = preg_replace('/\#[A-z]*/', "", $typeAndValue[1]);
 	$constantsArr = array("string","int", "bool");
-
 	if (count($typeAndValue) != 2){
 		//error invalid format
 	}
@@ -86,13 +87,11 @@ function variableCheck($word){
 				}
 			}
 			return $typeAndValue;
-			break;
 		case 'int':
 			return $typeAndValue;
 		case 'bool':
-			$typeAndValue[1] = strtolower($typeAndValue[1]);
+			if ($typeAndValue[1] != "true" || $typeAndValue[1] != "false"){errorHandel(23);}
 			return $typeAndValue;
-			break;
 		case "GF":
 		case "TF":
 		case "LF":
@@ -100,8 +99,10 @@ function variableCheck($word){
 			$typeAndValue[0] = "var";
 			return $typeAndValue;
 		case "nil":
+			if ($typeAndValue[1] != "nil"){errorHandel(23);}
 			return $typeAndValue;
 		default:
+			errorHandel(23);
 			break;
 	}
 }
@@ -118,6 +119,7 @@ function checkLine($line){
 		case $keyWords[19]: //INT2CHAR 3
 		case $keyWords[24]: //STRLEN
 		case $keyWords[27]: //TYPE
+		case $keyWords[18]: //NOT 2
 			numberOfArgumentsOnLineCheck($line_arr, 2);
 			$printableResult1 = variableCheck($line_arr[2]);
 			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], $printableResult1[0], $printableResult1[1]);
@@ -154,7 +156,6 @@ function checkLine($line){
 		case $keyWords[15]: //EQ 3
 		case $keyWords[16]: //AND 3
 		case $keyWords[17]: //OR 3
-		case $keyWords[18]: //NOT 3
 		case $keyWords[20]: //STR2INT 3
 		case $keyWords[23]: //CONCAT
 		case $keyWords[25]: //GETCHAR
@@ -183,8 +184,10 @@ function checkLine($line){
 		case $keyWords[32]: //EXIT
 		case $keyWords[33]: //DPRINT
 			numberOfArgumentsOnLineCheck($line_arr, 1);
-			$printableResult1 = variableCheck($line_arr[2]);
+			$printableResult1 = variableCheck($line_arr[1]);
 			printResult(strtoupper($line_arr[0]), $printableResult1[0], $printableResult1[1]);
+			break;
+		case "":
 			break;
 		default:
 			if ( !commentCheck($line_arr[0]) ){
@@ -265,19 +268,19 @@ function numberOfArgumentsOnLineCheck($line_arr, $noOfArgumentsItTakes){
 	$count = count($line_arr);
 	if ($count != $noOfArgumentsItTakes+1){
 		if ($count < $noOfArgumentsItTakes+1){
-			errorHandel(22);
+			errorHandel(23);
 		}
 
 		if ($count > $noOfArgumentsItTakes+1){
 			if ( !(commentCheck($line_arr[$noOfArgumentsItTakes+1]) || (strpos($line_arr[$noOfArgumentsItTakes],"#") !== false)) ){
-				errorHandel(22);
+				errorHandel(23);
 			}
 		}
 	}
 
 	for ($i = $noOfArgumentsItTakes; $i > 0 ; $i--){
 		if (commentCheck($line_arr[$i])){
-			errorHandel(22);
+			errorHandel(23);
 		}
 	}
 }
