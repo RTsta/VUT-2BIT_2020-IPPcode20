@@ -95,6 +95,9 @@ function variableCheck($word){
 		case "GF":
 		case "TF":
 		case "LF":
+		if (!preg_match('/^[A-z]{1}/',$typeAndValue[1])){
+				errorHandel(23);
+				}
 			$typeAndValue[1] = $typeAndValue[0]."@".$typeAndValue[1];
 			$typeAndValue[0] = "var";
 			return $typeAndValue;
@@ -121,8 +124,9 @@ function checkLine($line){
 		case $keyWords[27]: //TYPE
 		case $keyWords[18]: //NOT 2
 			numberOfArgumentsOnLineCheck($line_arr, 2);
-			$printableResult1 = variableCheck($line_arr[2]);
-			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], $printableResult1[0], $printableResult1[1]);
+			$printableResult1 = variableCheck($line_arr[1]);
+			$printableResult2 = variableCheck($line_arr[2]);
+			printResult(strtoupper($line_arr[0]), $printableResult1[0], $printableResult1[1], $printableResult2[0], $printableResult2[1]);
 			break;
 		case $keyWords[1]: //CREATEFRAME 0
 		case $keyWords[2]: //PUSHFRAME 0
@@ -135,7 +139,8 @@ function checkLine($line){
 		case $keyWords[4]: //DEFVAR 1
 		case $keyWords[8]: //POPS 2
 			numberOfArgumentsOnLineCheck($line_arr, 1);
-			printResult(strtoupper($line_arr[0]), "var", $line_arr[1]);
+			$printableResult1 = variableCheck($line_arr[1]);
+			printResult(strtoupper($line_arr[0]), $printableResult1[0], $printableResult1[1]);
 			break;
 		case $keyWords[5]: //CALL 1
 			numberOfArgumentsOnLineCheck($line_arr, 1);
@@ -161,13 +166,15 @@ function checkLine($line){
 		case $keyWords[25]: //GETCHAR
 		case $keyWords[26]: //SETCHAR
 			numberOfArgumentsOnLineCheck($line_arr, 3);
+			$printableResult0 = variableCheck($line_arr[1]);
 			$printableResult1 = variableCheck($line_arr[2]);
 			$printableResult2 = variableCheck($line_arr[3]);
-			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], $printableResult1[0], $printableResult1[1], $printableResult2[0], $printableResult2[1] );
+			printResult(strtoupper($line_arr[0]), $printableResult0[0], $printableResult0[1], $printableResult1[0], $printableResult1[1], $printableResult2[0], $printableResult2[1] );
 			break;
 		case $keyWords[21]: //READ 2
 			numberOfArgumentsOnLineCheck($line_arr, 2);
-			printResult(strtoupper($line_arr[0]), "var", $line_arr[1], "type", $line_arr[2]);
+			$printableResult1 = variableCheck($line_arr[2]);
+			printResult(strtoupper($line_arr[0]), $printableResult1[0] , $printableResult1[1], "type", $line_arr[2]);
 			break;
 		case $keyWords[28]: //LABEL
 		case $keyWords[29]: //JUMP
