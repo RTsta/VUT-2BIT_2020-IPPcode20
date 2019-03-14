@@ -65,12 +65,15 @@ function headerCheck($line){
 	return false;
 }
 
+/*
+	Checking the validity of variable, whether is it correct type
+*/
 function variableCheck($word){
 	$typeAndValue = explode ("@", $word);
 	$typeAndValue[1] = preg_replace('/\#[A-z]*/', "", $typeAndValue[1]);
 	$constantsArr = array("string","int", "bool");
 	if (count($typeAndValue) != 2){
-		//error invalid format
+		errorHandel(23);
 	}
 
 	switch ($typeAndValue[0]) {
@@ -110,12 +113,15 @@ function variableCheck($word){
 	}
 }
 
+/*
+	Function that looks for match of givven instruction and keyword 
+*/
 function checkLine($line){
 	$line = preg_replace('/\s+/', ' ',$line);
 	$line_arr = explode(' ',trim($line));
 	$keyWords = array("MOVE", "CREATEFRAME", "PUSHFRAME", "POPFRAME", "DEFVAR", "CALL", "RETURN", "PUSHS", "POPS", "ADD", "SUB", "MUL", "IDIV", "LT" ,"GT" ,"EQ", "AND", "OR", "NOT", "INT2CHAR", "STRI2INT", "READ", "WRITE", "CONCAT", "STRLEN", "GETCHAR", "SETCHAR", "TYPE", "LABEL", "JUMP", "JUMPIFEQ", "JUMPIFNEQ", "EXIT", "DPRINT", "BREAK");
 
-	//regex pattern @([A-z]+) kterů použiji na argumenty, které tisknu a ještě z nich musím oddělat zavináč a nahradit všechny divný znaky
+	//regex pattern @([A-z]+) který použiji na argumenty, které tisknu a ještě z nich musím oddělat zavináč a nahradit všechny divný znaky
 
 	switch (strtoupper($line_arr[0])){
 		case $keyWords[0]: //MOVE 2
