@@ -179,7 +179,7 @@ function checkLine($line){
 			break;
 		case $keyWords[21]: //READ 2
 			numberOfArgumentsOnLineCheck($line_arr, 2);
-			$printableResult1 = variableCheck($line_arr[2]);
+			$printableResult1 = variableCheck($line_arr[1]);
 			printResult(strtoupper($line_arr[0]), $printableResult1[0] , $printableResult1[1], "type", $line_arr[2]);
 			break;
 		case $keyWords[28]: //LABEL
