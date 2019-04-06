@@ -1,0 +1,20 @@
+.ippcode19
+break
+DEFVAR GF@globalni
+CREATEFRAME
+defvar TF@docasna
+mul TF@docasna int@11 int@6
+PUSHFRAME
+defvar GF@cteni
+ADD GF@globalni int@1 int@+2
+dprint GF@globalni
+dprint string@ahoj
+dprint TF@docasna
+dprint LF@docasna
+label tady
+break
+add LF@docasna TF@docasna int@22
+dprint TF@docasna
+BREAK
+dprint TF@docasna
+exit int@21
