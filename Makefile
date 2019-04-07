@@ -5,4 +5,4 @@ zip:
 	
 debug:
 	php parse.php <discord_test/debug/debug.src >discord_test/debug/debug.xml
-	python3 interpret.py
+	python3 interpret.py --source=discord_test/debug/debug.xml --input=discord_test/debug/interpret_stdin_debug.input
