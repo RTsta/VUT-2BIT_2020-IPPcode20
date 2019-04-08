@@ -72,7 +72,10 @@ class Frameholder(dict):
         self["TF"] = Variables()
 
     def frame_exist(self, which):
-        return self[which] is not None
+        if which == "LF":
+            return self[which] != []
+        else:
+            return self[which] is not None
 
     def is_in_gf(self, var):
         return var in self["GF"].keys()
@@ -139,7 +142,7 @@ class Instruction:
             if str(symb["type"]) == "int":
                 symb["value"] = int(Instruction.xml_block[arguments[arg_no]].text)
             elif str(symb["type"]) == "bool":
-                symb["value"] = Instruction.xml_block[arguments[arg_no]].text != "False"
+                symb["value"] = Instruction.xml_block[arguments[arg_no]].text != "false"
             elif str(symb["type"]) == "nil":
                 symb["value"] = None
             elif str(symb["type"]) == "string":
@@ -186,6 +189,7 @@ class Instruction:
             exit(55)
 
         frame["LF"].append(frame["TF"])
+        frame["TF"] = None
 
     # POPFRAME
     @staticmethod
@@ -228,7 +232,12 @@ class Instruction:
     @staticmethod
     def ipp_return():
         Syntax.check()
-        xmlobject.currentLine = int(data_stack.pop())-1
+        try:
+            xmlobject.currentLine = int(data_stack.pop())-1
+        except IndexError:
+            print("Error - semantic error at line " + str(
+                Instruction.xml_block.attrib["order"]) + " - poping from empty stack", file=sys.stderr)
+            exit(56)
 
     # PUSHS ⟨symb⟩
     @staticmethod
@@ -501,7 +510,8 @@ class Instruction:
 
         string = frame.load_var_value(arg1["frame"], arg1["value"])
         try:
-            string[int(position)] = new_char[0]
+            index = int(position)
+            string = string[:index] + new_char[0] + string[index + 1:]
         except IndexError:
             print("Error - Semantic error at line" + str(
                 Instruction.xml_block.attrib["order"]) + " - position is out of index", file=sys.stderr)
@@ -565,8 +575,8 @@ class Instruction:
             print("Error - semantic error at line " + str(Instruction.xml_block.attrib["order"]) + " - label does not exist", file=sys.stderr)
             exit(52)
 
-            operand1 = Instruction.load_symb(arg2)
-            operand2 = Instruction.load_symb(arg3)
+        operand1 = Instruction.load_symb(arg2)
+        operand2 = Instruction.load_symb(arg3)
 
         if type(operand1) is not type(operand2):
             exit(53)
