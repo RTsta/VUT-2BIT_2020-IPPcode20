@@ -18,11 +18,11 @@ class Ippcode:
         self.currentLine = 0
 
         if not self.header_check():
-            print("error - missing header", file=sys.stderr)
+            print("error - missing or wrong header", file=sys.stderr)
             exit(21)
 
     def header_check(self):
-        if self.root.attrib['language'] == "IPPcode19":
+        if self.root.attrib['language'] == "IPPcode19" and len(self.root.attrib) == 1:
             return True
         else:
             return False
@@ -133,6 +133,9 @@ class Instruction:
     @staticmethod
     def decomponent_symb(arg_no):
         arguments = {"arg1": 0, "arg2": 1, "arg3": 2}
+        if Instruction.xml_block[arguments[arg_no]].tag != arg_no:
+            print("Error – Syntactic error at line "+str(Instruction.xml_block.attrib["order"])+" - expected "+str(arg_no), file=sys.stderr)
+            exit(32)
 
         symb = {"type": Instruction.xml_block[arguments[arg_no]].attrib["type"], "frame": "", "value": ""}
 
@@ -716,7 +719,14 @@ class Syntax:
             else:
                 new_string += to_convert[-3:]
 
+            if '#' in new_string:
+                return False
+            if '\\' in new_string:
+                return False
+
+
             arg.text = new_string
+
             return True
         else:
             return False

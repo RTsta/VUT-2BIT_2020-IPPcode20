@@ -2,7 +2,8 @@ Implementační dokumentace k 1. úloze do IPP 2018/2019
 Jméno a příjmení: Arthur_Nacar  
 Login: xnacar00
 
-#IPP - projekt (2019)  
+#IPP - projekt (2019)
+## Parser (parser.php) 
 Následující dokumentace popisuje parser nestrukturovaného imperativního jazyka IPPcode19 a převádí vstup ze standardního vstupu do jeho popisu XML. Během převodu provádím syntaktickou analýzu zadaného kódu, aby případné syntaktické chyby odhaleny v ranných fázích celého interpretu.  
 První testy se zaměřují na standardní vstup a na to co bylo na něj přivedeno. Pokud žádný vstup přiveden není, program je ukončen s chybou 21. Z dokumentace jazyka vyplývá, že každý soubor, který má být přeložitelný, musí být opatřený hlavičkou. Její přítomnost je testována funkcí `headerCheck`.  
 Hlavní smyčka programu načítá soubor po řádcích, které následně předává funkci `checkLine`. Tato funkce funguje jako deterministický stavový automat, který porovnává první slovo řádku se zabudovaným polem klíčových slov. Nenalezne-li shodu, je řádek dále testován, zda-li není prázdný nebo neobsahuje komentář a pokud ani v tomto případě testy nejsou úspěšné, dochází k vypsáni chyby 22 na standardní chybový výstup. Protože instrukce přijímají různý počet operandů, jsou rozděleny do skupin podle jejich počtu, které zajišťuje přehlednější čitelnost kódu a zjednodušuje následnou kontrolu.  
