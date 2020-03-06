@@ -100,10 +100,10 @@ function checkStringForEscape($word)
 }
 
 function checkInt($word){
-    if (!preg_match("/^[-+]?[0-9][1-9]*$/",$word)){
-        return false;
+    if (preg_match("/(^[+-]?[0]{1}[1-9]{2}\d*$)|(^[-+]?[1-9]{1}\d*$)/",$word) || preg_match("/^\d+$/",$word)){
+        return true;
     }
-    return true;
+    return false;
 }
 
 /*
@@ -117,7 +117,6 @@ function symbCheck($word)
     }
     $typeAndValue[1] = preg_replace('/\#.*/', "", $typeAndValue[1]);
     if (count($typeAndValue) != 2) {
-
         errorHandel(23);
     }
 
@@ -126,7 +125,9 @@ function symbCheck($word)
             $typeAndValue[1] = checkStringForEscape($typeAndValue[1]);
             return $typeAndValue;
         case 'int':
-            if (!checkInt($typeAndValue[1])){errorHandel(23);}
+            if (!checkInt($typeAndValue[1])){
+                errorHandel(23);
+            }
             return $typeAndValue;
         case 'bool':
             if ($typeAndValue[1] != "true" && $typeAndValue[1] != 'false') {
@@ -399,7 +400,7 @@ function printResult($instruction, $arg1type = NULL, $arg1data = "", $arg2type =
  */
 function errorHandel($errorNum)
 {
-    //todo fwrite(STDERR, $errorNum . "\n");
+    fwrite(STDERR, $errorNum . "\n");
     exit($errorNum);
 }
 
