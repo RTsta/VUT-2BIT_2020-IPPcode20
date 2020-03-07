@@ -1,32 +1,36 @@
 import xml.etree.ElementTree as ET
 import sys
-import ast  # evaluation of True/False in READ
+
 
 def errorHandel(number):
 	print(number, file=sys.stderr)
 	print(number)
 	exit(number)
 
-def myprint(string):
-	print("\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"+string+"\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n", file=sys.stderr)
+
+def mydebugprint(string):
+	print("x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x", file=sys.stderr)
+	print(str(string), file=sys.stderr)
+	print("x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x", file=sys.stderr)
+
 
 # ---------------------------------------------------------------------------------------------------------------IPPCODE
 class Ippcode:
 	def __init__(self, file):
 		try:
 			tree = ET.parse(file)
+			self.root = tree.getroot()
+			self.currentLine = 0
+
+			if not self.header_check():
+				print("error - missing or wrong header", file=sys.stderr)
+				errorHandel(21)
 		except ET.ParseError:
 			print("Error - unable to read XML file", file=sys.stderr)
 			errorHandel(31)
 		except FileNotFoundError:
 			print("Error - unable to read XML file", file=sys.stderr)
 			errorHandel(11)
-		self.root = tree.getroot()
-		self.currentLine = 0
-
-		if not self.header_check():
-			print("error - missing or wrong header", file=sys.stderr)
-			errorHandel(21)
 
 	def header_check(self):
 		if self.root.attrib['language'] == "IPPcode20" and len(self.root.attrib) == 1:
@@ -51,7 +55,7 @@ class Ippcode:
 
 
 # -------------------------------------------------------------------------------------------------------------VARIABLES
-class Variables(dict):
+class Variable(dict):
 	...
 
 
@@ -68,15 +72,15 @@ class Labelholder(dict):
 class Frameholder(dict):
 	def __init__(self):
 		super(dict, self).__init__()
-		self["GF"] = Variables()
+		self["GF"] = dict()
 		self["TF"] = None
 		self["LF"] = list()
 
 	def new_lf(self):
-		self["LF"].append(Variables())
+		self["LF"].append(dict())
 
 	def new_tf(self):
-		self["TF"] = Variables()
+		self["TF"] = dict()
 
 	def frame_exist(self, which):
 		if which == "LF":
@@ -84,14 +88,24 @@ class Frameholder(dict):
 		else:
 			return self[which] is not None
 
-	def is_in_gf(self, var):
-		return var in self["GF"].keys()
+	def new_var(self, where, var_name):
+		if where == "GF" or where == "TF":
+			self[where][var_name] = Variable()
+			self[where][var_name]["init"] = False
+			self[where][var_name]["value"] = None
+		elif where == "LF":
+			self[where][-1][var_name] = Variable()
+			self[where][-1][var_name]["init"] = False
+			self[where][-1][var_name]["value"] = None
 
-	def is_in_tf(self, var):
-		return var in self["TF"].keys()
+	def is_in_gf(self, var_name):
+		return var_name in self["GF"].keys()
 
-	def is_in_lf(self, var):
-		return var in self["LF"][-1].keys()
+	def is_in_tf(self, var_name):
+		return var_name in self["TF"].keys()
+
+	def is_in_lf(self, var_name):
+		return var_name in self["LF"][-1].keys()
 
 	def var_exist(self, where, var_name):
 		if not self.frame_exist(where):
@@ -102,19 +116,21 @@ class Frameholder(dict):
 
 		is_in_switch = {"GF": self.is_in_gf, "TF": self.is_in_tf, "LF": self.is_in_lf}
 		if is_in_switch[where](var_name) is False:
-			print("Error - Semantic error at line " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable doesnt exist", file=sys.stderr)
-			errorHandel(54)
 			return False
 		return True
 
-	def symb_exist(self, type, frame, value):
-		if type == "var":
-			return self.var_exist(frame, value)
-		elif type == "string" or type == "int" or type == "bool" or type == "nil":
+	def var_correct_type(self, where, var_name, expected_type):
+		self.var_exist(where, var_name)
+		var_value = self.load_var_value(where, var_name)
+		if expected_type == "int" and type(var_value) is int:
 			return True
-		else:
-			return False
+		if expected_type == "bool" and type(var_value) is bool:
+			return True
+		if expected_type == "nil" and type(var_value) is None:
+			return True
+		if expected_type == "string" and type(var_value) is str:
+			return True
+		return False
 
 	def var_was_definied(self, where, var_name):
 		if where == "LF" and (self["LF"] is None or self["LF"] == []):
@@ -131,29 +147,25 @@ class Frameholder(dict):
 			return True
 		return False
 
-	def var_is_set(self, where, var_name):
-		if not self.var_exist(where, var_name):
-			return False
-		if self.load_var_value(where, var_name) is None:
-			return False
-		return True
-
-	def var_insert_new(self,where, var_name):
-		if where == "GF" or where == "TF":
-			frame[where][var_name] = None
-		elif where == "LF":
-			frame[where][-1][var_name] = None
+	def var_is_init(self, where, var_name):
+		return self.load_var(where, var_name)["init"]
 
 	def modify_in_gf(self, what, new_value):
-		self["GF"][what] = new_value
+		var = self.load_var("GF", what)
+		var["value"] = new_value
+		var["init"] = True
 
 	def modify_in_tf(self, what, new_value):
-		self["TF"][what] = new_value
+		var = self.load_var("TF", what)
+		var["value"] = new_value
+		var["init"] = True
 
 	def modify_in_lf(self, what, new_value):
-		self["LF"][-1][what] = new_value
+		var = self.load_var("LF", what)
+		var["value"] = new_value
+		var["init"] = True
 
-	def load_var_value(self, where, var_name):
+	def load_var(self, where, var_name):
 		if not self.var_exist(where, var_name):
 			return
 		if where == "LF":
@@ -161,11 +173,98 @@ class Frameholder(dict):
 		else:
 			return self[where][var_name]
 
+	def load_var_value(self, where, var_name):
+		return self.load_var(where, var_name)["value"]
+
 	def modify_var(self, where, var_name, new_value):
 		if not self.var_exist(where, var_name):
 			return
 		modify_in_switch = {"GF": self.modify_in_gf, "TF": self.modify_in_tf, "LF": self.modify_in_lf, }
 		modify_in_switch[where](var_name, new_value)
+
+	def symb_exist(self, symb_type, symb_frame, symb_value):
+		if symb_type == "var":
+			return self.var_exist(symb_frame, symb_value)
+		elif symb_type == "string" or symb_type == "int" or symb_type == "bool" or symb_type == "nil":
+			return True
+		else:
+			return False
+
+	def symb_is_init(self, symb_type, symb_frame, symb_value):
+		if symb_type == "var":
+			return self.var_is_init(symb_frame, symb_value)
+		elif symb_type == "string" or symb_type == "int" or symb_type == "bool" or symb_type == "nil":
+			return True
+		else:
+			return False
+
+	''' Function returns the value of symb, that means if it is var, than it loads the value 
+	from frame otherwise it returns value from symbol'''
+
+	def load_symb(self, arg):
+		value = arg["value"]
+		if arg["type"] == "var":
+			value = self.load_var_value(arg["frame"], arg["value"])
+		return value
+
+	def symb_check_type(self, symb_type, symb_frame, symb_value, expected_type):
+		if symb_type == "var":
+			return self.var_correct_type(symb_frame, symb_value, expected_type)
+		elif symb_type == expected_type:
+			return True
+		return False
+
+
+class Semantics:
+	@staticmethod
+	def check_type(symb_or_var, arg, expected_type):
+		if symb_or_var == "var":
+			if not frame.var_correct_type(arg["frame"], arg["value"], expected_type):
+				print("Error – Semantic error at line  " + str(
+					Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
+				errorHandel(53)
+		else:
+			if not frame.symb_check_type(arg["type"], arg["frame"], arg["value"], expected_type):
+				print("Error – Semantic error at line  " + str(
+					Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
+				errorHandel(53)
+		return
+
+	@staticmethod
+	def check_existence(symb_or_var, arg):
+		if symb_or_var == "var":
+			if not frame.var_exist(arg["frame"], arg["value"]):
+				print("Error – Semantic error at line " + str(
+					Instruction.xml_block.attrib["order"]) + " - variable doesn't not exist", file=sys.stderr)
+				errorHandel(54)
+		else:
+			if not frame.symb_exist(arg["type"], arg["frame"], arg["value"]):
+				print("Error – Semantic error at line " + str(
+					Instruction.xml_block.attrib["order"]) + " - variable doesn't not exist", file=sys.stderr)
+				errorHandel(54)
+		return
+
+	@staticmethod
+	def check_init(arg):
+		if arg["type"] == "var":
+			if not frame.var_is_init(arg["frame"], arg["value"]):
+				print("Error – Semantic error at line " + str(
+					Instruction.xml_block.attrib["order"]) + " - variable is not initialized", file=sys.stderr)
+				errorHandel(56)
+		return
+
+	@staticmethod
+	def check_existence_and_init(symb_or_var, arg):
+		Semantics.check_existence(symb_or_var,arg)
+		Semantics.check_init(arg)
+		return
+
+	@staticmethod
+	def label_existence(label):
+		if not labels.exist(label):
+			print("Error - semantic error at line " + str(
+				Instruction.xml_block.attrib["order"]) + " - label does not exist", file=sys.stderr)
+			errorHandel(52)
 
 
 # -----------------------------------------------------------------------------------------------------------INSTRUCTION
@@ -202,21 +301,12 @@ class Instruction:
 	@staticmethod
 	def decompont_var(arg_no):
 		arguments = {"arg1": 0, "arg2": 1, "arg3": 2}
-		var = {"type": Instruction.xml_block[arguments[arg_no]].attrib["type"],
-			   "frame": Instruction.xml_block[arguments[arg_no]].text[:2],
-			   "value": Instruction.xml_block[arguments[arg_no]].text[3:]}
+		var = {
+			"type": Instruction.xml_block[arguments[arg_no]].attrib["type"],
+			"frame": Instruction.xml_block[arguments[arg_no]].text[:2],
+			"value": Instruction.xml_block[arguments[arg_no]].text[3:]
+		}
 		return var
-
-	''' Function returns the value of symb, that means if it is var, than it loads the value 
-    from frame otherwise it returns value from symbol'''
-
-	@staticmethod
-	def load_symb(arg):
-		value = arg["value"]
-
-		if arg["type"] == "var":
-			value = frame.load_var_value(arg["frame"], arg["value"])
-		return value
 
 	# MOVE ⟨var⟩ ⟨symb⟩
 	@staticmethod
@@ -225,16 +315,8 @@ class Instruction:
 		arg1 = Instruction.decompont_var("arg1")
 		arg2 = Instruction.decomponent_symb("arg2")
 
-		if not (frame.var_exist(arg1["frame"], arg1["value"]) and frame.symb_exist(arg2["type"], arg2["frame"],
-																				   arg2["value"])):
-			print("Error – Semantic error at line " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable doesn't not exist", file=sys.stderr)
-			errorHandel(54)
-
-		if arg2["type"] == "var" and not frame.var_is_set(arg2["frame"], arg2["value"]):
-			print("Error – Semantic error at line " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable is not initialized", file=sys.stderr)
-			errorHandel(56)
+		Semantics.check_existence("var", arg1)
+		Semantics.check_existence_and_init("symb", arg2)
 
 		frame.modify_var(arg1["frame"], arg1["value"], arg2["value"])
 
@@ -282,8 +364,7 @@ class Instruction:
 				Instruction.xml_block.attrib["order"]) + " - variable was already defiened", file=sys.stderr)
 			errorHandel(52)
 
-		frame.var_insert_new(arg1["frame"], arg1["value"])
-
+		frame.new_var(arg1["frame"], arg1["value"])
 
 	# CALL ⟨label⟩
 	@staticmethod
@@ -316,7 +397,9 @@ class Instruction:
 		Syntax.check("symb")
 		arg1 = Instruction.decomponent_symb("arg1")
 
-		operand1 = Instruction.load_symb(arg1)
+		Semantics.check_existence_and_init("symb", arg1)
+
+		operand1 = frame.load_symb(arg1)
 		data_stack.append(operand1)
 
 	# POPS ⟨var⟩
@@ -324,7 +407,8 @@ class Instruction:
 	def ipp_pops():
 		Syntax.check("var")
 		arg1 = Instruction.decompont_var("arg1")
-		if data_stack == []:
+		Semantics.check_existence("var", arg1)
+		if not data_stack:
 			print("Error - semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - data stack is empty", file=sys.stderr)
 			errorHandel(56)
@@ -334,30 +418,20 @@ class Instruction:
 	@staticmethod
 	def ipp_arithmetic(operator):
 		Syntax.check("var", "symb", "symb")
+
 		arg1 = Instruction.decompont_var("arg1")
 		arg2 = Instruction.decomponent_symb("arg2")
 		arg3 = Instruction.decomponent_symb("arg3")
 
-		frame.symb_exist(arg2["type"], arg2["frame"], arg2["value"])
-		frame.symb_exist(arg3["type"], arg3["frame"], arg3["value"])
+		Semantics.check_existence("var", arg1)
+		Semantics.check_existence_and_init("symb", arg2)
+		Semantics.check_existence_and_init("symb", arg3)
+		Semantics.check_type("symb", arg2, "int")
+		Semantics.check_type("symb", arg3, "int")
 
-		if (arg2["type"] != "var" and arg2["type"] != "int"):
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - incpomatible types", file=sys.stderr)
-			errorHandel(53)
+		operand1 = frame.load_symb(arg2)
+		operand2 = frame.load_symb(arg3)
 
-		if (arg3["type"] != "var" and arg3["type"] != "int"):
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-			errorHandel(53)
-
-		operand1 = Instruction.load_symb(arg2)
-		operand2 = Instruction.load_symb(arg3)
-
-		if operand1 is None or operand2 is None:
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable is unset", file=sys.stderr)
-			errorHandel(56)
 		try:
 			operation = {
 				"add": int(operand1) + int(operand2),
@@ -396,59 +470,36 @@ class Instruction:
 	@staticmethod
 	def ipp_lt_gt_eq(operator):
 		Syntax.check("var", "symb", "symb")
+
 		arg1 = Instruction.decompont_var("arg1")
 		arg2 = Instruction.decomponent_symb("arg2")
 		arg3 = Instruction.decomponent_symb("arg3")
 
-		frame.symb_exist(arg2["type"], arg2["frame"], arg2["value"])
-		frame.symb_exist(arg3["type"], arg3["frame"], arg3["value"])
+		Semantics.check_existence("var", arg1)
+		Semantics.check_existence_and_init("symb", arg2)
+		Semantics.check_existence_and_init("symb", arg3)
 
-		if operator != "EQ":
-			if (arg2["type"] != arg3["type"]):
-				if arg2["type"] != "var" and arg3["type"] != "var":
-					print("Error – Semantic error at line  " + str(
-						Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
+		operand1 = frame.load_symb(arg2)
+		operand2 = frame.load_symb(arg3)
+
+		if operator == "EQ":
+			if type(operand1) is not type(operand2):
+				if not (operand1 is None or operand2 is None):
+					print("Error - semantic error at line " + str(
+						Instruction.xml_block.attrib["order"]) + " - incompatible operand types", file=sys.stderr)
 					errorHandel(53)
-			elif arg2["type"] == "nil":
-				print("Error – Semantic error at line  " + str(
-					Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-				errorHandel(53)
 		else:
-			if (arg2["type"] != arg3["type"]):
-				if (arg2["type"] != "var" and arg3["type"] != "var"):
-					if (arg2["type"] != "nil" and arg3["type"] != "nil"):
-						print("Error – Semantic error at line  " + str(
-							Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-						errorHandel(53)
+			if (type(operand1) is not type(operand2)) or (operand1 is None and operand2 is None):
+				print("Error - semantic error at line " + str(
+					Instruction.xml_block.attrib["order"]) + " - incompatible operand types", file=sys.stderr)
+				errorHandel(53)
 
-		operand1 = Instruction.load_symb(arg2)
-		operand2 = Instruction.load_symb(arg3)
-
-		if operand1 is None or operand2 is None:
-			if operator == "EQ":
-					if arg2["type"] == "var" or arg3["type"] == "var":
-						print("Error – Semantic error at line  " + str(
-							Instruction.xml_block.attrib["order"]) + " - variable is unset", file=sys.stderr)
-						errorHandel(56)
-
-			else:
-				print("Error – Semantic error at line  " + str(
-					Instruction.xml_block.attrib["order"]) + " - variable is unset", file=sys.stderr)
-				errorHandel(56)
-
-
-
-		try:
-			if operator == "LT":
-				frame.modify_var(arg1["frame"], arg1["value"], operand1 < operand2)
-			elif operator == "GT":
-				frame.modify_var(arg1["frame"], arg1["value"], operand1 > operand2)
-			else:
-				frame.modify_var(arg1["frame"], arg1["value"], operand1 == operand2)
-		except ValueError:
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - frame doesnt not exist", file=sys.stderr)
-			errorHandel(57)
+		if operator == "LT":
+			frame.modify_var(arg1["frame"], arg1["value"], operand1 < operand2)
+		elif operator == "GT":
+			frame.modify_var(arg1["frame"], arg1["value"], operand1 > operand2)
+		else:
+			frame.modify_var(arg1["frame"], arg1["value"], operand1 == operand2)
 
 	# LT / GT / EQ ⟨var⟩ ⟨symb1⟩ ⟨symb2⟩
 	@staticmethod
@@ -473,25 +524,15 @@ class Instruction:
 		arg2 = Instruction.decomponent_symb("arg2")
 		arg3 = Instruction.decomponent_symb("arg3")
 
+		Semantics.check_existence("var", arg1)
+		Semantics.check_existence_and_init("symb", arg2)
+		Semantics.check_existence_and_init("symb", arg3)
 
-		operand1 = Instruction.load_symb(arg2)
-		operand2 = Instruction.load_symb(arg3)
+		Semantics.check_type("symb", arg2, "bool")
+		Semantics.check_type("symb", arg3, "bool")
 
-		if (arg2["type"] != arg3["type"]):
-			if operand1 is None or operand2 is None:
-				if arg2["type"] != "nil" and arg3["type"] != "nil":
-					print("Error – Semantic error at line  " + str(
-					Instruction.xml_block.attrib["order"]) + " - variable is unset", file = sys.stderr)
-					errorHandel(56)
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-			errorHandel(53)
-
-		if type(operand1) is not bool and type(operand2) is not bool:
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-			errorHandel(53)
-
+		operand1 = frame.load_symb(arg2)
+		operand2 = frame.load_symb(arg3)
 
 		operation = {
 			"and": operand1 and operand2,
@@ -513,23 +554,12 @@ class Instruction:
 		arg1 = Instruction.decompont_var("arg1")
 		arg2 = Instruction.decomponent_symb("arg2")
 
-		if arg2["type"] != "bool" and arg2["type"] != "var":
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-			errorHandel(53)
+		Semantics.check_existence("var", arg1)
 
-		operand1 = Instruction.load_symb(arg2)
+		Semantics.check_existence_and_init("symb", arg2)
+		Semantics.check_type("symb", arg2, "bool")
 
-		if operand1 is None:
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable is unset", file=sys.stderr)
-			errorHandel(56)
-
-		if type(operand1) is not bool:
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-			errorHandel(53)
-
+		operand1 = frame.load_symb(arg2)
 		frame.modify_var(arg1["frame"], arg1["value"], not operand1)
 
 	# INT2CHAR ⟨var⟩ ⟨symb⟩
@@ -539,29 +569,15 @@ class Instruction:
 		arg1 = Instruction.decompont_var("arg1")
 		arg2 = Instruction.decomponent_symb("arg2")
 
-		if arg2["type"] != "int" and arg2["type"] != "var":
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-			errorHandel(53)
+		Semantics.check_existence("var", arg1)
 
-		int2char = Instruction.load_symb(arg2)
+		Semantics.check_existence_and_init("symb", arg2)
+		Semantics.check_type("symb", arg2, "int")
 
-		if int2char is None:
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable is unset", file=sys.stderr)
-			errorHandel(56)
+		int2char = int(frame.load_symb(arg2))
 
 		try:
-			int(int2char) is int
-		except ValueError:
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-			errorHandel(53)
-
-
-
-		try:
-			int2char = chr(int(int2char))
+			int2char = chr(int2char)
 			frame.modify_var(arg1["frame"], arg1["value"], int2char)
 		except ValueError:
 			print("Error - Semantic error at line" + str(
@@ -576,31 +592,23 @@ class Instruction:
 		arg2 = Instruction.decomponent_symb("arg2")
 		arg3 = Instruction.decomponent_symb("arg3")
 
-		if arg2["type"] != "string" and arg2["type"] != "var":
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-			errorHandel(53)
+		Semantics.check_existence("var", arg1)
+		Semantics.check_existence_and_init("symb", arg2)
+		Semantics.check_type("symb", arg2, "string")
+		Semantics.check_existence_and_init("symb", arg3)
+		Semantics.check_type("symb", arg3, "int")
 
-		if arg3["type"] != "int" and arg3["type"] != "var":
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-			errorHandel(53)
+		stri2int = frame.load_symb(arg2)
+		char_pos = int(frame.load_symb(arg3))
 
-		stri2int = Instruction.load_symb(arg2)
-		char_pos = Instruction.load_symb(arg3)
-
-		if stri2int is None or char_pos is None:
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable is unset", file=sys.stderr)
-			errorHandel(56)
-
+		if int(char_pos) < 0:
+			print("Error - Semantic error at line" + str(
+				Instruction.xml_block.attrib["order"]) + " - position is out of index", file=sys.stderr)
+			errorHandel(58)
 
 		try:
-			if int(char_pos) < 0:
-				print("Error - Semantic error at line" + str(
-					Instruction.xml_block.attrib["order"]) + " - position is out of index", file=sys.stderr)
-				errorHandel(58)
 			result = ord(stri2int[char_pos])
+			frame.modify_var(arg1["frame"], arg1["value"], result)
 		except TypeError:
 			print("Error - Semantic error at line" + str(
 				Instruction.xml_block.attrib["order"]) + " - illegal arguments", file=sys.stderr)
@@ -610,14 +618,14 @@ class Instruction:
 				Instruction.xml_block.attrib["order"]) + " - position is out of index", file=sys.stderr)
 			errorHandel(58)
 
-		frame.modify_var(arg1["frame"], arg1["value"], result)
-
 	# READ ⟨var⟩ ⟨type⟩
 	@staticmethod
 	def ipp_read():
 		Syntax.check("var", "type")
 		arg1 = Instruction.decompont_var("arg1")
 		type_of_input = str(Instruction.xml_block[1].text)
+
+		Semantics.check_existence("var", arg1)
 
 		if input_file is None:
 			read = input()
@@ -632,9 +640,10 @@ class Instruction:
 
 		if type_of_input == "bool":
 			frame.modify_var(arg1["frame"], arg1["value"], str(read).lower() == "true")
-		else:
+		elif type_of_input in type_switch.keys() and type_of_input != "bool":
 			frame.modify_var(arg1["frame"], arg1["value"], type_switch[type_of_input](read))
-
+		else:
+			frame.modify_var(arg1["frame"], arg1["value"], None)
 
 	# WRITE ⟨symb⟩
 	@staticmethod
@@ -642,14 +651,19 @@ class Instruction:
 		Syntax.check("symb")
 		arg1 = Instruction.decomponent_symb("arg1")
 
-		variable_to_write = Instruction.load_symb(arg1)
+		Semantics.check_existence_and_init("symb", arg1)
 
-		if variable_to_write is None and not frame.var_is_set(arg1["frame"],arg1["value"]):
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable is unset", file=sys.stderr)
-			errorHandel(56)
+		variable_to_write = frame.load_symb(arg1)
 
-		print(variable_to_write, end="")
+		if type(variable_to_write) is bool:
+			if variable_to_write is True:
+				print("true", end="")
+			else:
+				print("false", end="")
+		elif variable_to_write is None:
+			print("", end="")
+		else:
+			print(variable_to_write, end="")
 
 	# CONCAT ⟨var⟩ ⟨symb1⟩ ⟨symb2⟩
 	@staticmethod
@@ -659,23 +673,15 @@ class Instruction:
 		arg2 = Instruction.decomponent_symb("arg2")
 		arg3 = Instruction.decomponent_symb("arg3")
 
-		operand1 = Instruction.load_symb(arg2)
-		operand2 = Instruction.load_symb(arg3)
+		Semantics.check_existence("var", arg1)
+		Semantics.check_existence_and_init("symb", arg2)
+		Semantics.check_existence_and_init("symb", arg3)
 
-		if (arg2["type"] == "var" and not frame.var_is_set(arg2["frame"], arg2["value"])) or \
-				(arg3["type"] == "var" and not frame.var_is_set(arg3["frame"], arg3["value"])):
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable is unset", file=sys.stderr)
-			errorHandel(56)
+		Semantics.check_type("symb", arg2, "string")
+		Semantics.check_type("symb", arg3, "string")
 
-		if arg2["type"] != "string" or arg3["type"] != "string":
-			print(
-				"Error - Semantic error at line" + str(Instruction.xml_block.attrib["order"]) + " - incompatible types",
-				file=sys.stderr)
-			errorHandel(53)
-
-		concat1 = Instruction.load_symb(arg2)
-		concat2 = Instruction.load_symb(arg3)
+		concat1 = frame.load_symb(arg2)
+		concat2 = frame.load_symb(arg3)
 
 		frame.modify_var(arg1["frame"], arg1["value"], str(concat1) + str(concat2))
 
@@ -686,21 +692,13 @@ class Instruction:
 		arg1 = Instruction.decompont_var("arg1")
 		arg2 = Instruction.decomponent_symb("arg2")
 
-		if arg2["type"] == "var" and not frame.var_is_set(arg2["frame"], arg2["value"]):
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable is unset", file=sys.stderr)
-			errorHandel(56)
+		Semantics.check_existence("var", arg1)
+		Semantics.check_existence_and_init("symb", arg2)
+		Semantics.check_type("symb", arg2, "string")
 
-		if arg2["type"] != "var" and arg2["type"] != "string":
-			print(
-				"Error - Semantic error at line" + str(Instruction.xml_block.attrib["order"]) + " - incompatible types",
-				file=sys.stderr)
-			errorHandel(53)
+		string = str(frame.load_symb(arg2))
 
-
-		string = Instruction.load_symb(arg2)
-
-		frame.modify_var(arg1["frame"], arg1["value"], len(str(string)))
+		frame.modify_var(arg1["frame"], arg1["value"], len(string))
 
 	# GETCHAR ⟨var⟩ ⟨symb1⟩ ⟨symb2⟩
 	@staticmethod
@@ -710,32 +708,22 @@ class Instruction:
 		arg2 = Instruction.decomponent_symb("arg2")
 		arg3 = Instruction.decomponent_symb("arg3")
 
-		string = Instruction.load_symb(arg2)
-		char_pos = Instruction.load_symb(arg3)
+		Semantics.check_existence("var", arg1)
+		Semantics.check_existence_and_init("symb", arg2)
+		Semantics.check_existence_and_init("symb", arg3)
 
-		if arg2["type"] != "string" and arg2["type"] != "var":
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-			errorHandel(53)
+		Semantics.check_type("symb", arg2, "string")
+		Semantics.check_type("symb", arg3, "int")
 
-		if arg3["type"] != "int" and arg3["type"] != "var":
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-			errorHandel(53)
+		string = str(frame.load_symb(arg2))
+		char_pos = int(frame.load_symb(arg3))
 
-		if arg2["type"] == "var" and not frame.var_is_set(arg2["frame"], arg2["value"]):
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable is unset", file=sys.stderr)
-			errorHandel(56)
-		if arg3["type"] == "var" and not frame.var_is_set(arg3["frame"], arg3["value"]):
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable is unset", file=sys.stderr)
-			errorHandel(56)
+		if int(char_pos) < 0:
+			print("Error - Semantic error at line" + str(
+				Instruction.xml_block.attrib["order"]) + " - position is out of index", file=sys.stderr)
+			errorHandel(58)
+
 		try:
-			if int(char_pos) < 0:
-				print("Error - Semantic error at line" + str(
-					Instruction.xml_block.attrib["order"]) + " - position is out of index", file=sys.stderr)
-				errorHandel(58)
 			frame.modify_var(arg1["frame"], arg1["value"], str(string)[int(char_pos)])
 		except IndexError:
 			print("Error - Semantic error at line" + str(
@@ -750,40 +738,25 @@ class Instruction:
 		arg2 = Instruction.decomponent_symb("arg2")
 		arg3 = Instruction.decomponent_symb("arg3")
 
-		if arg2["type"] != "int" and arg2["type"] != "var":
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-			errorHandel(53)
+		Semantics.check_existence_and_init("var", arg1)
+		Semantics.check_existence_and_init("symb", arg2)
+		Semantics.check_existence_and_init("symb", arg3)
 
-		if arg3["type"] != "str" and arg3["type"] != "var":
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-			errorHandel(53)
+		Semantics.check_type("symb", arg1, "string")
+		Semantics.check_type("symb", arg2, "int")
+		Semantics.check_type("symb", arg3, "string")
 
-		if arg2["type"] == "var" and not frame.var_is_set(arg2["frame"], arg2["value"]):
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable is unset", file=sys.stderr)
-			errorHandel(56)
-		if arg3["type"] == "var" and not frame.var_is_set(arg3["frame"], arg3["value"]):
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable is unset", file=sys.stderr)
-			errorHandel(56)
+		string = str(frame.load_var_value(arg1["frame"], arg1["value"]))
+		index = int(frame.load_symb(arg2))
+		new_char = str(frame.load_symb(arg3))
 
-		position = Instruction.load_symb(arg2)
-		new_char = Instruction.load_symb(arg3)
-
-		string = frame.load_var_value(arg1["frame"], arg1["value"])
-		try:
-			if int(position) < 0:
-				print("Error - Semantic error at line" + str(
-					Instruction.xml_block.attrib["order"]) + " - position is out of index", file=sys.stderr)
-				errorHandel(58)
-			index = int(position)
-			string = string[:index] + new_char[0] + string[index + 1:]
-		except IndexError:
+		if index < 0 or index >= len(string) or new_char == "":
 			print("Error - Semantic error at line" + str(
 				Instruction.xml_block.attrib["order"]) + " - position is out of index", file=sys.stderr)
 			errorHandel(58)
+
+		string = string[:index] + new_char[0] + string[index + 1:]
+
 		frame.modify_var(arg1["frame"], arg1["value"], string)
 
 	# TYPE ⟨var⟩ ⟨symb⟩
@@ -793,14 +766,18 @@ class Instruction:
 		arg1 = Instruction.decompont_var("arg1")
 		arg2 = Instruction.decomponent_symb("arg2")
 
+		Semantics.check_existence("var", arg1)
+		Semantics.check_existence("symb", arg2)
+
 		if arg2["type"] == "var":
-			type_of_symb = frame.load_var_value(arg2["frame"], arg2["value"])
-			if type(type_of_symb) is int:
+			if type(frame.load_var_value(arg2["frame"], arg2["value"])) is int:
 				type_of_symb = "int"
-			elif type(type_of_symb) is str:
+			elif type(frame.load_var_value(arg2["frame"], arg2["value"])) is str:
 				type_of_symb = "string"
-			elif type(type_of_symb) is bool:
+			elif type(frame.load_var_value(arg2["frame"], arg2["value"])) is bool:
 				type_of_symb = "bool"
+			elif not frame.var_is_init(arg2["frame"], arg2["value"]):
+				type_of_symb = ""
 			else:
 				type_of_symb = "nil"
 		else:
@@ -812,8 +789,8 @@ class Instruction:
 	@staticmethod
 	def ipp_label():
 		Syntax.check("label")
-
 		new_label = Instruction.xml_block[0].text
+
 		if labels.exist(new_label):
 			print("Error - semantic error at line " + str(Instruction.xml_block.attrib["order"]) + " - label exist",
 				  file=sys.stderr)
@@ -825,11 +802,9 @@ class Instruction:
 	@staticmethod
 	def ipp_jump():
 		Syntax.check("label")
+		arg1 = Instruction.xml_block[0].text
 
-		if not labels.exist(Instruction.xml_block[0].text):
-			print("Error - semantic error at line " + str(
-				Instruction.xml_block.attrib["order"]) + " - label does not exist", file=sys.stderr)
-			errorHandel(52)
+		Semantics.label_existence(arg1)
 
 		xmlobject.currentLine = int(labels[str(Instruction.xml_block[0].text)])
 
@@ -839,19 +814,19 @@ class Instruction:
 		Syntax.check("label", "symb", "symb")
 		arg2 = Instruction.decomponent_symb("arg2")
 		arg3 = Instruction.decomponent_symb("arg3")
+		arg1 = Instruction.xml_block[0].text
 
-		if not labels.exist(Instruction.xml_block[0].text):
-			print("Error - semantic error at line " + str(
-				Instruction.xml_block.attrib["order"]) + " - label does not exist", file=sys.stderr)
-			errorHandel(52)
+		Semantics.label_existence(arg1)
+		Semantics.check_existence_and_init("symb", arg2)
+		Semantics.check_existence_and_init("symb", arg3)
 
-		operand1 = Instruction.load_symb(arg2)
-		operand2 = Instruction.load_symb(arg3)
+		operand1 = frame.load_symb(arg2)
+		operand2 = frame.load_symb(arg3)
 
 		if type(operand1) is not type(operand2):
-			if type(operand1) is not None and type(operand2) is not None:
+			if not (operand1 is None or operand2 is None):
 				print("Error - semantic error at line " + str(
-					Instruction.xml_block.attrib["order"]) + " - ", file=sys.stderr)
+					Instruction.xml_block.attrib["order"]) + " - incompatible operand types", file=sys.stderr)
 				errorHandel(53)
 
 		if operand1 == operand2:
@@ -863,17 +838,22 @@ class Instruction:
 		Syntax.check("label", "symb", "symb")
 		arg2 = Instruction.decomponent_symb("arg2")
 		arg3 = Instruction.decomponent_symb("arg3")
+		arg1 = Instruction.xml_block[0].text
 
-		if not labels.exist(Instruction.xml_block[0].text):
-			print("Error - semantic error at line " + str(
-				Instruction.xml_block.attrib["order"]) + " - label does not exist", file=sys.stderr)
-			errorHandel(52)
+		Semantics.label_existence(arg1)
 
-		operand1 = Instruction.load_symb(arg2)
-		operand2 = Instruction.load_symb(arg3)
+		Semantics.label_existence(arg1)
+		Semantics.check_existence_and_init("symb", arg2)
+		Semantics.check_existence_and_init("symb", arg3)
+
+		operand1 = frame.load_symb(arg2)
+		operand2 = frame.load_symb(arg3)
 
 		if type(operand1) is not type(operand2):
-			errorHandel(53)
+			if not (operand1 is None or operand2 is None):
+				print("Error - semantic error at line " + str(
+					Instruction.xml_block.attrib["order"]) + " - incompatible operand types", file=sys.stderr)
+				errorHandel(53)
 
 		if operand1 != operand2:
 			xmlobject.currentLine = int(labels[str(Instruction.xml_block[0].text)])
@@ -883,25 +863,13 @@ class Instruction:
 	def ipp_exit():  # ano
 		Syntax.check("symb")
 		arg1 = Instruction.decomponent_symb("arg1")
-		exit_code = Instruction.load_symb(arg1)
 
-		if arg1["type"] != "int" and arg1["type"] != "var":
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - incompatible types", file=sys.stderr)
-			errorHandel(53)
+		Semantics.check_existence_and_init("symb", arg1)
+		Semantics.check_type("symb", arg1, "int")
 
-		if arg1["type"] == "var" and not frame.var_is_set(arg1["frame"], arg1["value"]):
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable is unset", file=sys.stderr)
-			errorHandel(56)
+		exit_code = int(frame.load_symb(arg1))
 
-		if exit_code is None:
-			print("Error – Semantic error at line  " + str(
-				Instruction.xml_block.attrib["order"]) + " - variable is unset", file=sys.stderr)
-			errorHandel(56)
-
-
-		if 0 <= int(exit_code) <= 49:
+		if 0 <= exit_code <= 49:
 			errorHandel(exit_code)
 		else:
 			errorHandel(57)
@@ -911,7 +879,10 @@ class Instruction:
 	def ipp_dprint():  # ano
 		Syntax.check("symb")
 		arg1 = Instruction.decomponent_symb("arg1")
-		variable_to_write = Instruction.load_symb(arg1)
+
+		Semantics.check_existence_and_init("symb", arg1)
+
+		variable_to_write = frame.load_symb(arg1)
 
 		print(variable_to_write, file=sys.stderr)
 
@@ -965,6 +936,7 @@ class Syntax:
 			"type": Syntax.arg_is_type,
 		}
 		for x in arguments:
+
 			if actions[arguments[x]](Instruction.xml_block[position[x]]) is False:
 				print("Error – Syntactic error in " + str(
 					Instruction.xml_block.attrib["opcode"]) + " - invalid format of arguments", file=sys.stderr)
@@ -1005,25 +977,30 @@ class Syntax:
 			to_convert = arg.text
 			new_string = ""
 			position = 0
-			while position < len(to_convert) - 3:
-				if to_convert[position] == "\\" and to_convert[position + 1].isdigit() and to_convert[
-					position + 2].isdigit() and to_convert[position + 3].isdigit():
-					mychr = chr(int(to_convert[position + 2]) * 10 + int(to_convert[position + 3]))
-					new_string += mychr
-					position += 4
-					continue
-				new_string += to_convert[position]
-				position += 1
-			else:
-				new_string += to_convert[-3:]
+			while position < len(to_convert):
+				if to_convert[position] == '#':
+					break
+				if to_convert[position] == "\\":
+					if (len(to_convert) - position) < 2:
+						errorHandel(32)
 
-			if '#' in new_string:
-				return False
+					if to_convert[position + 1].isdigit() and to_convert[position + 2].isdigit() and to_convert[
+						position + 3].isdigit():
+						mychr = chr(int(to_convert[position + 1]) * 100 + int(to_convert[position + 2]) * 10 + int(
+							to_convert[position + 3]))
+						new_string += mychr
+						position += 4
+						continue
+					else:
+						errorHandel(32)
+				else:
+					new_string += to_convert[position]
+					position += 1
+
 			if '\\' in new_string:
 				return False
 
 			arg.text = new_string
-
 			return True
 		else:
 			return False
@@ -1052,6 +1029,7 @@ def print_help():
 	print("* \tNote: Alespoň jeden z parametrů (--source nebo --input) musí být vždy zadán.")
 	print("***********************************************************************************************************")
 	print("\n")
+
 
 def load_labels():
 	while True:
@@ -1155,6 +1133,6 @@ while True:
 		instructions_switch[a.attrib["opcode"].upper()]()
 	except KeyError:
 		print(
-			"Error – Syntactic error at line "+ str(Instruction.xml_block.attrib["order"]) + " - invalid instruction",
+			"Error – Syntactic error at line " + str(Instruction.xml_block.attrib["order"]) + " - invalid instruction",
 			file=sys.stderr)
 		errorHandel(32)
