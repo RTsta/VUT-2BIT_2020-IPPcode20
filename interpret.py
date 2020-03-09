@@ -631,18 +631,23 @@ class Instruction:
 			read = input()
 		else:
 			read = input_file.readline()
+			if read == '':
+				frame.modify_var(arg1["frame"], arg1["value"], None)
+				return
+			else:
+				read = read[:-1]  # removes last \n that adds readline
+		#todo neumím pracovat s prádzným řádkem na konci file viz. read4.src
 
-		type_switch = {
-			"int": int,
-			"string": str,
-			"bool": str,
-		}
-
-		if type_of_input == "bool":
-			frame.modify_var(arg1["frame"], arg1["value"], str(read).lower() == "true")
-		elif type_of_input in type_switch.keys() and type_of_input != "bool":
-			frame.modify_var(arg1["frame"], arg1["value"], type_switch[type_of_input](read))
-		else:
+		try:
+			if type_of_input == "bool" and (str(read).lower() == "true" or str(read).lower() == "false"):
+				frame.modify_var(arg1["frame"], arg1["value"], str(read).lower() == "true")
+			elif type_of_input == "string":
+				frame.modify_var(arg1["frame"], arg1["value"], str(read))
+			elif type_of_input == "int":
+				frame.modify_var(arg1["frame"], arg1["value"], int(read))
+			else:
+				frame.modify_var(arg1["frame"], arg1["value"], None)
+		except:
 			frame.modify_var(arg1["frame"], arg1["value"], None)
 
 	# WRITE ⟨symb⟩
@@ -660,10 +665,12 @@ class Instruction:
 				print("true", end="")
 			else:
 				print("false", end="")
+		elif type(variable_to_write) is int or type(variable_to_write) is str:
+			print(variable_to_write, end="")
 		elif variable_to_write is None:
 			print("", end="")
 		else:
-			print(variable_to_write, end="")
+			print("", end="")
 
 	# CONCAT ⟨var⟩ ⟨symb1⟩ ⟨symb2⟩
 	@staticmethod
@@ -770,16 +777,17 @@ class Instruction:
 		Semantics.check_existence("symb", arg2)
 
 		if arg2["type"] == "var":
-			if type(frame.load_var_value(arg2["frame"], arg2["value"])) is int:
+			var = frame.load_var_value(arg2["frame"], arg2["value"])
+			if type(var) is int:
 				type_of_symb = "int"
-			elif type(frame.load_var_value(arg2["frame"], arg2["value"])) is str:
+			elif type(var) is str:
 				type_of_symb = "string"
-			elif type(frame.load_var_value(arg2["frame"], arg2["value"])) is bool:
+			elif type(var) is bool:
 				type_of_symb = "bool"
-			elif not frame.var_is_init(arg2["frame"], arg2["value"]):
-				type_of_symb = ""
-			else:
+			elif var is None:
 				type_of_symb = "nil"
+			else:
+				type_of_symb = ""
 		else:
 			type_of_symb = arg2["type"]
 
