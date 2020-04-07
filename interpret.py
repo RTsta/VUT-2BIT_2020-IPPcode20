@@ -21,11 +21,22 @@ class Ippcode:
 			tree = ET.parse(file)
 			self.root = tree.getroot()
 			self.currentLine = 0
+			self.listOfOrderNumbers = list()
+			self.minOrder = 0
+			self.maxOrder = 0
+			self.currentOrder = 0
 
 			if not self.header_check():
 				print("error - missing or wrong header", file=sys.stderr)
 				errorHandel(21)
-
+			self.check_structure()
+			self.listOfOrderNumbers.sort()
+			if self.listOfOrderNumbers != []:
+				self.minOrder = min(self.listOfOrderNumbers)
+				self.maxOrder = max(self.listOfOrderNumbers)
+				self.currentOrder = self.minOrder-1
+			if self.minOrder < 0:
+				errorHandel(32)
 		except ET.ParseError:
 			print("Error - unable to read XML file", file=sys.stderr)
 			errorHandel(31)
@@ -45,9 +56,46 @@ class Ippcode:
 		return True
 
 	def jump_to_instruction(self, line):
-		self.currentLine = line - 1
+		self.currentOrder = 0
+
+	def check_structure(self):
+		for element in self.root:
+			if element.tag != 'instruction':
+				errorHandel(32) #todo vypsat error
+			if len(element.attrib) != 2:
+				errorHandel(32)  # todo vypsat error
+			for attribute in element.attrib:
+				if attribute not in ["order", "opcode"]:
+					print("error - unknown atrtribute in header", file=sys.stderr)
+					errorHandel(32)
+			try:
+				loadedOrder = int(element.attrib["order"])
+				if loadedOrder in self.listOfOrderNumbers:
+					errorHandel(32)
+				self.listOfOrderNumbers.append(loadedOrder)
+			except ValueError:
+				errorHandel(32) #todo opcode nebylo číslo
 
 	def next_instruction(self):
+		if self.listOfOrderNumbers == []:
+			return None
+		succ = False
+		for numb in self.listOfOrderNumbers:
+			if numb > self.currentOrder:
+				self.currentOrder = numb
+				succ = True
+				break
+		# už žádné další číslo není
+		if not succ:
+			return None
+		for element in self.root:
+			if int(element.attrib["order"]) == self.currentOrder:
+				return element
+		else:
+			return None
+
+
+	def old_next_instruction(self):
 		if self.currentLine < len(self.root):
 			self.currentLine += 1
 
@@ -59,8 +107,9 @@ class Ippcode:
 					except ValueError:
 						errorHandel(32)
 					if int(element.attrib["order"]) == self.currentLine:
-						element.tag != 'instruction'
 						return element
+					else:
+						self.next_instruction()
 				else:
 					errorHandel(32)
 			else:
@@ -291,35 +340,55 @@ class Instruction:
 	# arg [type:string  |frame:""   |value:"ahoj" ] <--> string@ahoj
 	@staticmethod
 	def decomponent_symb(arg_no):
-		arguments = {"arg1": 0, "arg2": 1, "arg3": 2}
-		if Instruction.xml_block[arguments[arg_no]].tag != arg_no:
+		chidrenTags = []
+		for a in Instruction.xml_block:
+			chidrenTags.append(a.tag)
+		if arg_no not in chidrenTags:
 			print(
 				"Error – Syntactic error at line " + str(Instruction.xml_block.attrib["order"]) + " - expected " + str(
 					arg_no), file=sys.stderr)
 			errorHandel(32)
 
-		symb = {"type": Instruction.xml_block[arguments[arg_no]].attrib["type"], "frame": "", "value": ""}
+		rigtArg = Instruction.xml_block[0]
+		for a in Instruction.xml_block:
+			if a.tag == arg_no:
+				rigtArg = a
 
-		if Syntax.arg_is_var(Instruction.xml_block[arguments[arg_no]]):
+		symb = {"type": rigtArg.attrib["type"], "frame": "", "value": ""}
+
+		if Syntax.arg_is_var(rigtArg):
 			return Instruction.decompont_var(arg_no)
-		elif Syntax.arg_is_const(Instruction.xml_block[arguments[arg_no]]):
+		elif Syntax.arg_is_const(rigtArg):
 			if str(symb["type"]) == "int":
-				symb["value"] = int(Instruction.xml_block[arguments[arg_no]].text)
+				symb["value"] = int(rigtArg.text)
 			elif str(symb["type"]) == "bool":
-				symb["value"] = Instruction.xml_block[arguments[arg_no]].text != "false"
+				symb["value"] = rigtArg.text != "false"
 			elif str(symb["type"]) == "nil":
 				symb["value"] = None
 			elif str(symb["type"]) == "string":
-				symb["value"] = Instruction.xml_block[arguments[arg_no]].text
+				symb["value"] = rigtArg.text
 		return symb
 
 	@staticmethod
 	def decompont_var(arg_no):
-		arguments = {"arg1": 0, "arg2": 1, "arg3": 2}
+		chidrenTags = []
+		for a in Instruction.xml_block:
+			chidrenTags.append(a.tag)
+		if arg_no not in chidrenTags:
+			print(
+				"Error – Syntactic error at line " + str(Instruction.xml_block.attrib["order"]) + " - expected " + str(
+					arg_no), file=sys.stderr)
+			errorHandel(32)
+
+		rigtArg = Instruction.xml_block[0]
+		for a in Instruction.xml_block:
+			if a.tag == arg_no:
+				rigtArg = a
+
 		var = {
-			"type": Instruction.xml_block[arguments[arg_no]].attrib["type"],
-			"frame": Instruction.xml_block[arguments[arg_no]].text[:2],
-			"value": Instruction.xml_block[arguments[arg_no]].text[3:]
+			"type": rigtArg.attrib["type"],
+			"frame": rigtArg.text[:2],
+			"value": rigtArg.text[3:]
 		}
 		return var
 
@@ -394,6 +463,7 @@ class Instruction:
 		data_stack.append(int(Instruction.xml_block.attrib["order"]) + 1)
 
 		xmlobject.currentLine = int(labels[str(Instruction.xml_block[0].text)])
+		xmlobject.currentOrder = int(labels[str(Instruction.xml_block[0].text)])
 
 	# RETURN
 	@staticmethod
@@ -401,6 +471,7 @@ class Instruction:
 		Syntax.check()
 		try:
 			xmlobject.currentLine = int(data_stack.pop()) - 1
+			xmlobject.currentOrder = xmlobject.currentLine
 		except IndexError:
 			print("Error - semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - poping from empty stack", file=sys.stderr)
@@ -812,12 +883,11 @@ class Instruction:
 	@staticmethod
 	def ipp_label():
 		Syntax.check("label")
-		new_label = Instruction.xml_block[0].text
+		new_label = Instruction.xml_block[0].text #fixme nenačítá to název labelu
 		if labels.exist(new_label):
 			print("Error - semantic error at line " + str(Instruction.xml_block.attrib["order"]) + " - label exist",
 				  file=sys.stderr)
 			errorHandel(52)
-
 		labels[str(new_label)] = int(Instruction.xml_block.attrib["order"])
 
 	# JUMP ⟨label⟩
@@ -829,6 +899,7 @@ class Instruction:
 		Semantics.label_existence(arg1)
 
 		xmlobject.currentLine = int(labels[str(Instruction.xml_block[0].text)])
+		xmlobject.currentOrder = int(labels[str(Instruction.xml_block[0].text)])
 
 	# JUMPIFEQ ⟨label⟩ ⟨symb1⟩ ⟨symb2⟩
 	@staticmethod
@@ -853,6 +924,7 @@ class Instruction:
 
 		if operand1 == operand2:
 			xmlobject.currentLine = int(labels[str(Instruction.xml_block[0].text)])
+			xmlobject.currentOrder = int(labels[str(Instruction.xml_block[0].text)])
 
 	# JUMPIFNEQ ⟨label⟩ ⟨symb1⟩ ⟨symb2⟩
 	@staticmethod
@@ -879,6 +951,7 @@ class Instruction:
 
 		if operand1 != operand2:
 			xmlobject.currentLine = int(labels[str(Instruction.xml_block[0].text)])
+			xmlobject.currentOrder = int(labels[str(Instruction.xml_block[0].text)])
 
 	# EXIT ⟨symb⟩
 	@staticmethod
@@ -959,11 +1032,25 @@ class Syntax:
 			"label": Syntax.arg_is_label,
 			"type": Syntax.arg_is_type,
 		}
-		for x in arguments:
-			if actions[arguments[x]](Instruction.xml_block[position[x]]) is False:
-				print("Error – Syntactic error in " + str(
-					Instruction.xml_block.attrib["opcode"]) + " - invalid format of arguments", file=sys.stderr)
-				errorHandel(32)
+
+		# prostě projedu všechny childnodes a postupně si "odškrkávám", které jsem objevil a mají tam být. poznačuji,
+		# že tam byli tím, že je popnu z dict() arguments. Pokud nějaký arguments v dict() zbyte, znamená to, že jsem
+		# jej nenašel v cyklu a je tam navíc
+		for key, val in list(arguments.items()):
+			for childElement in Instruction.xml_block:
+				if childElement.tag == key:
+					if actions[arguments[key]](childElement) is False:
+						print("Error – Syntactic error in " + str(
+							Instruction.xml_block.attrib["opcode"]) + " - invalid format of arguments", file=sys.stderr)
+						errorHandel(32)
+					else:
+						arguments.pop(key, None)
+
+		if len(arguments) > 0:
+			print(
+				"Error – Syntactic error in " + str(Instruction.xml_block.attrib["opcode"]) + " - number of arguments",
+				file=sys.stderr)
+			errorHandel(32)
 
 	@staticmethod
 	def no_of_arguments_check(no_of_arguments):
@@ -1055,11 +1142,12 @@ def print_help():
 
 
 def load_labels():
+	old_order = xmlobject.currentOrder
 	while True:
 		tmp = xmlobject.next_instruction()
-
 		if tmp is None:
 			xmlobject.currentLine = 0
+			xmlobject.currentOrder = old_order
 			return
 		if tmp.attrib["opcode"].upper() == "LABEL":
 			Instruction.xml_block = tmp
@@ -1105,11 +1193,10 @@ xmlobject = Ippcode(source_file)
 frame = Frameholder()
 labels = Labelholder()
 data_stack = list()
-#load_labels()
+load_labels()
 
 while True:
 	a = xmlobject.next_instruction()
-
 	if a is None:
 		break
 	act_order = a.attrib["order"]
@@ -1142,7 +1229,7 @@ while True:
 		"GETCHAR": Instruction.ipp_getchar,
 		"SETCHAR": Instruction.ipp_setchat,
 		"TYPE": Instruction.ipp_type,
-		"LABEL": Instruction.ipp_label,
+		"LABEL": Instruction.ipp_skip,
 		"JUMP": Instruction.ipp_jump,
 		"JUMPIFEQ": Instruction.ipp_jumpifeq,
 		"JUMPIFNEQ": Instruction.ipp_jumpifneq,
