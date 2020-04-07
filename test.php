@@ -382,7 +382,6 @@ else if ($arg->getIntOnly()) {
         $expectedOutput = file_get_contents($testName . ".out");
         exec("python3 " . $arg->getIntScriptFile() . " --source=$testName.src --input=$testName.in", $parse_out, $parse_ret);
 
-/*
         if ($expectedReturnCode == $parse_ret) {
             if ($parse_ret == 0) {
                 HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1),count($srcList),basename($testName),$parse_ret,"OK");
@@ -393,12 +392,11 @@ else if ($arg->getIntOnly()) {
                 $noOfPassed++;
             }
         } else {
-            HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1),count($srcList),basename($testName),$parse_ret,"FAIL");
+            HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1),count($srcList),basename($testName),$parse_ret,"FAIL","EXPECTED: ".$expectedReturnCode);
             $noOfFails++;
         }
     }
-*/
-}
+    HTMLtemplate::printStatistics($noOfPassed,$noOfFails);
 }
 else {
         $noOfPassed = 0;

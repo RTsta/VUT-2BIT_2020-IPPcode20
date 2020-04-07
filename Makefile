@@ -9,3 +9,6 @@ interpret_test:
 	
 zip:
 	zip ./other/$(ZIPNAME).zip parse.php interpret.py test.php readme1.md readme2.md
+	
+upload:
+	scp ./other/$(ZIPNAME).zip $(ZIPNAME)@merlin.fit.vutbr.cz:IPP

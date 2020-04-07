@@ -25,6 +25,7 @@ class Ippcode:
 			if not self.header_check():
 				print("error - missing or wrong header", file=sys.stderr)
 				errorHandel(21)
+
 		except ET.ParseError:
 			print("Error - unable to read XML file", file=sys.stderr)
 			errorHandel(31)
@@ -33,10 +34,15 @@ class Ippcode:
 			errorHandel(11)
 
 	def header_check(self):
-		if self.root.attrib['language'] == "IPPcode20" and len(self.root.attrib) == 1:
-			return True
-		else:
-			return False
+		for attribute in self.root.attrib:
+			if attribute not in ["language", "name","description"]:
+				print("error - unknown atrtribute in header", file=sys.stderr)
+				errorHandel(32)
+
+		if self.root.attrib['language'] != "IPPcode20":
+			print("error - missing or wrong header", file=sys.stderr)
+			errorHandel(21)
+		return True
 
 	def jump_to_instruction(self, line):
 		self.currentLine = line - 1
@@ -46,8 +52,17 @@ class Ippcode:
 			self.currentLine += 1
 
 			for element in self.root:
-				if int(element.attrib["order"]) == self.currentLine:
-					return element
+				if "order" in element.attrib and "opcode" in element.attrib:
+					try:
+						if int(element.attrib["order"]) <= 0 or len(element.attrib) > 2 or element.tag != 'instruction':
+							errorHandel(32)
+					except ValueError:
+						errorHandel(32)
+					if int(element.attrib["order"]) == self.currentLine:
+						element.tag != 'instruction'
+						return element
+				else:
+					errorHandel(32)
 			else:
 				self.next_instruction()
 		else:
@@ -798,7 +813,6 @@ class Instruction:
 	def ipp_label():
 		Syntax.check("label")
 		new_label = Instruction.xml_block[0].text
-
 		if labels.exist(new_label):
 			print("Error - semantic error at line " + str(Instruction.xml_block.attrib["order"]) + " - label exist",
 				  file=sys.stderr)
@@ -927,10 +941,12 @@ class Syntax:
 			"arg2": 1,
 			"arg3": 2,
 		}
+
 		for key, val in list(arguments.items()):
 			if arguments[key] is None:
 				arguments.pop(key, None)
 				position.pop(key, None)
+
 		if Syntax.no_of_arguments_check(len(arguments)) is False:
 			print(
 				"Error – Syntactic error in " + str(Instruction.xml_block.attrib["opcode"]) + " - number of arguments",
@@ -944,7 +960,6 @@ class Syntax:
 			"type": Syntax.arg_is_type,
 		}
 		for x in arguments:
-
 			if actions[arguments[x]](Instruction.xml_block[position[x]]) is False:
 				print("Error – Syntactic error in " + str(
 					Instruction.xml_block.attrib["opcode"]) + " - invalid format of arguments", file=sys.stderr)
@@ -1046,7 +1061,6 @@ def load_labels():
 		if tmp is None:
 			xmlobject.currentLine = 0
 			return
-
 		if tmp.attrib["opcode"].upper() == "LABEL":
 			Instruction.xml_block = tmp
 			Instruction.ipp_label()
@@ -1091,7 +1105,7 @@ xmlobject = Ippcode(source_file)
 frame = Frameholder()
 labels = Labelholder()
 data_stack = list()
-load_labels()
+#load_labels()
 
 while True:
 	a = xmlobject.next_instruction()
@@ -1128,7 +1142,7 @@ while True:
 		"GETCHAR": Instruction.ipp_getchar,
 		"SETCHAR": Instruction.ipp_setchat,
 		"TYPE": Instruction.ipp_type,
-		"LABEL": Instruction.ipp_skip,
+		"LABEL": Instruction.ipp_label,
 		"JUMP": Instruction.ipp_jump,
 		"JUMPIFEQ": Instruction.ipp_jumpifeq,
 		"JUMPIFNEQ": Instruction.ipp_jumpifneq,
