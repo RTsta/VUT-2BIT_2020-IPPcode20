@@ -263,9 +263,12 @@ class HTMLtemplate {
         .incorrect{
             background-color: #FF9CAF;
 :         }
+        .myfont {
+            font-family: Arial, Helvetica, sans-serif;
+        }
     </style>
     </head>
-    <body>
+    <body class='myfont'>
     <table style=\"margin-left:auto;margin-right:auto;\">
         <tr><td><h1>Testing mode: $modeType </h1></td></tr>
         <tr><td><div>Time: ".date("H:i:s")."</div></td></tr>
@@ -294,7 +297,7 @@ class HTMLtemplate {
 </table></td></tr>
 <tr><td><h2>Statistics</h2>
 <table class=\"resultsTable\">
-<tr style=\"background-color: #98FB98;\"><td>PASSED</td><td>$noOfPassed</td></tr>
+<tr class='correct'><td>PASSED</td><td>$noOfPassed</td></tr>
 <tr><td>FAILED</td><td>$noOfFailed</td></tr>
 </table></td></tr>
 </table>

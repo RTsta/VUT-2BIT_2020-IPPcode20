@@ -1,4 +1,4 @@
-Implementační dokumentace k 2. úloze do IPP 2018/2019  
+Implementační dokumentace k 2. úloze do IPP 2019/2020  
 Jméno a příjmení: Arthur_Nacar  
 Login: xnacar00
 
@@ -14,5 +14,7 @@ Než dojde k samotnému vyhodnocení jednotlivých instrukcí, tak vstupním sou
 Nejdůležitější části programu je třída `Instruction`, která obsahuje statické metody odpovídající instrukcím jazyka. V hlavním těle programu procházíme elementy XML souboru reprezentující instrukce a voláme jednotlivé metody této třídy. Po zavolání každé metody třídy `Instruction ` dochází k syntaktické analýze instrukce a jejích argumentů, podobné té, která je prováděna v souboru `parse.php`. Celou syntaktickou analyzu provádí třída `Syntax` a její metody. V případě platné syntaxe následuje i sémantická kontrola.  
 Třída sdružující metody pro semantickou kontrolu se nazývá `Semantics` Kontrolujeme hlavně existenci proměnné v uvedeném rámci. Pokud to povaha instrukce vyžaduje tak testijeme, zda-li byla proměnná inicializována a jestli se jedná o správný datový typ. Součásti sémnatické kontroly je také kontrola správnosti práce s datovým zásobníkem, jedinečnost názvu návěští. Každý ze sémantických nedostatků je ihned ohlášen na standardní chybový výstup a interpretace je přerušena.  
 
-Celý datový model je reprezentován dvěma entitami. Strukturou `data_stack` typu `list`, která představuje datový zásobník a třídou `Frameholder`, která je rozšířením slovníku.  
+Celý datový model je reprezentován dvěma entitami. Strukturou `data_stack` typu `DataStack`, což je třída odvozená od listu. Ta představuje datový zásobník a třídou `Frameholder`, která je rozšířením slovníku.  
 Třída `Frameholder` obsahuje pouze tři prvky, které korespondují s  jednotlivými rámci. Protože definice jazyka umožňuje několikanásobné vytvoření lokálního rámce, tak jednotlivé lokální rámce jsou uchovány v rámci třídy ve struktuře `list`, která nabízí podobnou funkcionalitu, jako zásobník.
+
+## test.php
