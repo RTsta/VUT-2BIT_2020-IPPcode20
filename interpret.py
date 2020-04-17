@@ -1,10 +1,11 @@
 import xml.etree.ElementTree as ET
 import sys
+from math import floor
 
 
 def errorHandel(number, message=None):
 	if message is not None:
-		print(message,file=sys.stderr)
+		print(message, file=sys.stderr)
 	print(number, file=sys.stderr)
 	exit(number)
 
@@ -25,7 +26,6 @@ class Ippcode:
 			self.minOrder = 1
 			self.maxOrder = 1
 			self.currentOrder = 1
-
 			if not self.header_check():
 				errorHandel(21, "Error - missing or wrong header")
 			self.check_structure()
@@ -50,23 +50,20 @@ class Ippcode:
 			errorHandel(32, "Error - missing or wrong header")
 		return True
 
-	def jump_to_instruction(self, line):
-		self.currentOrder = 0
-
 	def check_structure(self):
 		for element in self.root:
 			if element.tag != 'instruction':
-				errorHandel(32,"Error - unknown XML tag")
+				errorHandel(32, "Error - unknown XML tag")
 			if len(element.attrib) != 2:
 				errorHandel(32, "Error - extra XML attributes in tag")
 			for attribute in element.attrib:
 				if attribute not in ["order", "opcode"]:
 					errorHandel(32, "Error - unknown atrtribute in header",)
 			try:
-				loadedOrder = int(element.attrib["order"])
-				if loadedOrder in self.listOfOrderNumbers:
+				loaded_order = int(element.attrib["order"])
+				if loaded_order in self.listOfOrderNumbers:
 					errorHandel(32, "Error - duplicit order")
-				self.listOfOrderNumbers.append(loadedOrder)
+				self.listOfOrderNumbers.append(loaded_order)
 			except ValueError:
 				errorHandel(32, "Error - order is not number")
 
@@ -94,8 +91,8 @@ class DataStack(list):
 	def __init__(self):
 		super(list, self).__init__()
 
-	def topElem_is_correct_type(self,expected_type):
-		self.is_enought_elements(1)
+	def top_elem_is_correct_type(self, expected_type):
+		self.is_enough_elements(1)
 		var_value = self[-1]
 		if expected_type == "int" and type(var_value) is int:
 			return True
@@ -111,15 +108,16 @@ class DataStack(list):
 			return True
 		return False
 
-	def topElem_check_type(self, expected_type):
-		if not self.topElem_is_correct_type(expected_type):
-			errorHandel(53, "Error – Semantic error at line  " + str(
+	def top_elem_check_type(self, expected_type):
+		if not self.top_elem_is_correct_type(expected_type):
+			errorHandel(53, "Error – Semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - incompatible types")
 
-	def is_enought_elements(self, number_of_elements):
+	def is_enough_elements(self, number_of_elements):
 		if len(self) < number_of_elements:
 			errorHandel(56, "Error - semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - not enought elements on data stack")
+
 
 # -------------------------------------------------------------------------------------------------------------VARIABLES
 class Variable(dict):
@@ -190,17 +188,18 @@ class Frameholder(dict):
 		var_value = self.load_var_value(where, var_name)
 		if expected_type == "int" and type(var_value) is int:
 			return True
-		if expected_type == "bool" and type(var_value) is bool:
+		elif expected_type == "bool" and type(var_value) is bool:
 			return True
-		if expected_type == "nil" and type(var_value) is None:
+		elif expected_type == "nil" and type(var_value) is None:
 			return True
-		if expected_type == "string" and type(var_value) is str:
+		elif expected_type == "string" and type(var_value) is str:
 			return True
-		if expected_type == "float" and type(var_value) is float:
+		elif expected_type == "float" and type(var_value) is float:
 			return True
-		if expected_type == "number" and (type(var_value) is float or type(var_value) is int):
+		elif expected_type == "number" and (type(var_value) is float or type(var_value) is int):
 			return True
-		return False
+		else:
+			return False
 
 	def var_was_definied(self, where, var_name):
 		if where == "LF" and (self["LF"] is None or self["LF"] == []):
@@ -290,11 +289,11 @@ class Semantics:
 	def check_type(symb_or_var, arg, expected_type):
 		if symb_or_var == "var":
 			if not frame.var_correct_type(arg["frame"], arg["value"], expected_type):
-				errorHandel(53, "Error – Semantic error at line  " + str(
+				errorHandel(53, "Error – Semantic error at line " + str(
 					Instruction.xml_block.attrib["order"]) + " - incompatible types")
 		else:
 			if not frame.symb_check_type(arg["type"], arg["frame"], arg["value"], expected_type):
-				errorHandel(53, "Error – Semantic error at line  " + str(
+				errorHandel(53, "Error – Semantic error at line " + str(
 					Instruction.xml_block.attrib["order"]) + " - incompatible types")
 		return
 
@@ -320,7 +319,7 @@ class Semantics:
 
 	@staticmethod
 	def check_existence_and_init(symb_or_var, arg):
-		Semantics.check_existence(symb_or_var,arg)
+		Semantics.check_existence(symb_or_var, arg)
 		Semantics.check_init(arg)
 		return
 
@@ -340,74 +339,74 @@ class Instruction:
 	# arg [type:string  |frame:""   |value:"ahoj" ] <--> string@ahoj
 	@staticmethod
 	def decomponent_symb(arg_no):
-		chidrenTags = []
-		for a in Instruction.xml_block:
-			chidrenTags.append(a.tag)
-		if arg_no not in chidrenTags:
+		children_tags = []
+		for tmp1 in Instruction.xml_block:
+			children_tags.append(tmp1.tag)
+		if arg_no not in children_tags:
 			errorHandel(32, "Error – Syntactic error at line " + str(Instruction.xml_block.attrib["order"]) + " - expected " + str(
 					arg_no))
 
-		rigtArg = Instruction.xml_block[0]
-		for a in Instruction.xml_block:
-			if a.tag == arg_no:
-				rigtArg = a
+		right_arg = Instruction.xml_block[0]
+		for tmp2 in Instruction.xml_block:
+			if tmp2.tag == arg_no:
+				right_arg = tmp2
 
-		symb = {"type": rigtArg.attrib["type"], "frame": "", "value": ""}
+		symb = {"type": right_arg.attrib["type"], "frame": "", "value": ""}
 
-		if Syntax.arg_is_var(rigtArg):
+		if Syntax.arg_is_var(right_arg):
 			return Instruction.decompont_var(arg_no)
-		elif Syntax.arg_is_const(rigtArg):
+		elif Syntax.arg_is_const(right_arg):
 			if str(symb["type"]) == "int":
-				symb["value"] = int(rigtArg.text)
+				symb["value"] = int(right_arg.text)
 			elif str(symb["type"]) == "bool":
-				symb["value"] = rigtArg.text != "false"
+				symb["value"] = right_arg.text != "false"
 			elif str(symb["type"]) == "nil":
 				symb["value"] = None
 			elif str(symb["type"]) == "string":
-				symb["value"] = rigtArg.text #fixme neumí číst hashtag
-			if str(symb["type"]) == "float":
+				symb["value"] = right_arg.text  # fixme neumí číst hashtag
+			elif str(symb["type"]) == "float":
 				try:
-					symb["value"] = float(rigtArg.text)
-				except:
-					symb["value"] = float.fromhex(rigtArg.text)
+					symb["value"] = float(right_arg.text)
+				except ValueError:
+					symb["value"] = float.fromhex(right_arg.text)
 		return symb
 
 	@staticmethod
 	def decompont_var(arg_no):
-		chidrenTags = []
-		for a in Instruction.xml_block:
-			chidrenTags.append(a.tag)
-		if arg_no not in chidrenTags:
+		children_tags = []
+		for tmp1 in Instruction.xml_block:
+			children_tags.append(tmp1.tag)
+		if arg_no not in children_tags:
 			errorHandel(32, "Error – Syntactic error at line " + str(Instruction.xml_block.attrib["order"]) + " - expected " + str(
 					arg_no))
 
-		rigtArg = Instruction.xml_block[0]
-		for a in Instruction.xml_block:
-			if a.tag == arg_no:
-				rigtArg = a
+		right_arg = Instruction.xml_block[0]
+		for tmp2 in Instruction.xml_block:
+			if tmp2.tag == arg_no:
+				right_arg = tmp2
 
 		var = {
-			"type": rigtArg.attrib["type"],
-			"frame": rigtArg.text[:2],
-			"value": rigtArg.text[3:]
+			"type": right_arg.attrib["type"],
+			"frame": right_arg.text[:2],
+			"value": right_arg.text[3:]
 		}
 		return var
 
 	@staticmethod
 	def decompont_label(arg_no):
-		chidrenTags = []
-		for a in Instruction.xml_block:
-			chidrenTags.append(a.tag)
-		if arg_no not in chidrenTags:
+		children_tags = []
+		for tmp1 in Instruction.xml_block:
+			children_tags.append(tmp1.tag)
+		if arg_no not in children_tags:
 			errorHandel(32, "Error – Syntactic error at line " + str(Instruction.xml_block.attrib["order"]) + " - expected " + str(
 					arg_no))
 
-		rigtArg = Instruction.xml_block[0]
-		for a in Instruction.xml_block:
-			if a.tag == arg_no:
-				rigtArg = a
+		right_arg = Instruction.xml_block[0]
+		for tmp2 in Instruction.xml_block:
+			if tmp2.tag == arg_no:
+				right_arg = tmp2
 
-		return str(rigtArg.text)
+		return str(right_arg.text)
 
 	# MOVE ⟨var⟩ ⟨symb⟩
 	@staticmethod
@@ -456,11 +455,11 @@ class Instruction:
 		arg1 = Instruction.decompont_var("arg1")
 
 		if not frame.frame_exist(arg1["frame"]):
-			errorHandel(55, "Error – Semantic error at line  " + str(
+			errorHandel(55, "Error – Semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - frame doesn't not exist")
 
 		if frame.var_was_definied(arg1["frame"], arg1["value"]):
-			errorHandel(52, "Error – Semantic error at line  " + str(
+			errorHandel(52, "Error – Semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - variable was already defiened")
 
 		frame.new_var(arg1["frame"], arg1["value"])
@@ -515,41 +514,43 @@ class Instruction:
 	# CLEARS
 	@staticmethod
 	def ipp_clears():
+		Syntax.check()
 		data_stack.clear()
 
 	# SARITHMETICS
 	@staticmethod
 	def ipp_sarithmetic(operator):
+		Syntax.check()
 		if not data_stack:
 			errorHandel(56, "Error - semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - data stack is empty")
 
-		data_stack.is_enought_elements(2)
+		data_stack.is_enough_elements(2)
 
-		data_stack.topElem_check_type("number")
+		data_stack.top_elem_check_type("number")
 		operand2 = data_stack.pop()
-		data_stack.topElem_check_type("number")
+		data_stack.top_elem_check_type("number")
 		operand1 = data_stack.pop()
 		try:
-			operationInt = {
+			operation_int = {
 				"adds": int(operand1) + int(operand2),
 				"subs": int(operand1) - int(operand2),
 				"muls": int(operand1) * int(operand2),
-				"idivs": int(operand1) / int(operand2),
+				"idivs": floor(int(operand1) / int(operand2)),
 			}
 
-			operationFloat = {
+			operation_float = {
 				"adds": float(operand1) + float(operand2),
 				"subs": float(operand1) - float(operand2),
 				"muls": float(operand1) * float(operand2),
 				"divs": float(operand1) / float(operand2),
 			}
 			if type(operand1) is float or type(operand2) is float:
-				data_stack.append(float(operationFloat[operator]))
+				data_stack.append(float(operation_float[operator]))
 			else:
-				data_stack.append(int(operationInt[operator]))
+				data_stack.append(int(operation_int[operator]))
 		except ZeroDivisionError:
-			errorHandel(57, "Error – Semantic error at line  " + str(
+			errorHandel(57, "Error – Semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - dividing by zero")
 
 	# ADDS
@@ -580,14 +581,15 @@ class Instruction:
 	# SLOGIC_OP ⟨var⟩
 	@staticmethod
 	def ipp_slogic_op(operator):
+		Syntax.check()
 		if not data_stack:
 			errorHandel(56, "Error - semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - data stack is empty")
-		data_stack.is_enought_elements(2)
+		data_stack.is_enough_elements(2)
 
-		data_stack.topElem_check_type("bool")
+		data_stack.top_elem_check_type("bool")
 		operand2 = data_stack.pop()
-		data_stack.topElem_check_type("bool")
+		data_stack.top_elem_check_type("bool")
 		operand1 = data_stack.pop()
 
 		operation = {
@@ -609,6 +611,7 @@ class Instruction:
 	# SLT SGT SEQ  ⟨var⟩
 	@staticmethod
 	def ipp_lts_gts_eqs(operator):
+		Syntax.check()
 		if not data_stack:
 			errorHandel(56, "Error - semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - data stack is empty")
@@ -649,17 +652,19 @@ class Instruction:
 
 	@staticmethod
 	def ipp_nots():
-		data_stack.topElem_check_type("bool")
+		Syntax.check()
+		data_stack.top_elem_check_type("bool")
 		operand1 = data_stack.pop()
 		data_stack.append(not operand1)
 
 	# INT2CHAR ⟨var⟩ ⟨symb⟩
 	@staticmethod
 	def ipp_int2chars():
+		Syntax.check()
 		if not data_stack:
 			errorHandel(56, "Error - semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - data stack is empty")
-		data_stack.topElem_check_type("int")
+		data_stack.top_elem_check_type("int")
 		try:
 			int2char = int(data_stack.pop())
 			int2char = chr(int2char)
@@ -668,15 +673,16 @@ class Instruction:
 			errorHandel(58, "Error - Semantic error at line" + str(
 				Instruction.xml_block.attrib["order"]) + " - value is not a char")
 
-	# STRI2INT ⟨var⟩ ⟨symb1⟩ ⟨symb2⟩
+	# STRI2INT
 	@staticmethod
 	def ipp_stri2ints():
+		Syntax.check()
 		if not data_stack:
 			errorHandel(56, "Error - semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - data stack is empty")
-		data_stack.topElem_check_type("int")
+		data_stack.top_elem_check_type("int")
 		char_pos = int(data_stack.pop())
-		data_stack.topElem_check_type("string")
+		data_stack.top_elem_check_type("string")
 		stri2int = data_stack.pop()
 
 		if int(char_pos) < 0:
@@ -693,29 +699,31 @@ class Instruction:
 			errorHandel(58, "Error - Semantic error at line" + str(
 				Instruction.xml_block.attrib["order"]) + " - position is out of index")
 
-	# INT2FLOAT ⟨var⟩ ⟨symb⟩
+	# INT2FLOAT
 	@staticmethod
 	def ipp_int2floats():
+		Syntax.check()
 		if not data_stack:
 			errorHandel(56, "Error - semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - data stack is empty")
-		data_stack.topElem_check_type("int")
+		data_stack.top_elem_check_type("int")
 		int2float = int(data_stack.pop())
 		int2float = float(int2float)
 		data_stack.append(int2float)
 
-	# INT2FLOAT ⟨var⟩ ⟨symb⟩
+	# INT2FLOAT
 	@staticmethod
 	def ipp_float2ints():
+		Syntax.check()
 		if not data_stack:
 			errorHandel(56, "Error - semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - data stack is empty")
-		data_stack.topElem_check_type("float")
+		data_stack.top_elem_check_type("float")
 		float2int = float(data_stack.pop())
 		float2int = int(float2int)
 		data_stack.append(float2int)
 
-	# JUMPIFEQ ⟨label⟩ ⟨symb1⟩ ⟨symb2⟩
+	# JUMPIFEQ ⟨label⟩
 	@staticmethod
 	def ipp_jumpifeqs():
 		Syntax.check("label")
@@ -737,7 +745,7 @@ class Instruction:
 		if operand1 == operand2:
 			xmlobject.currentOrder = int(labels[arg1])
 
-	# JUMPIFNEQ ⟨label⟩ ⟨symb1⟩ ⟨symb2⟩
+	# JUMPIFNEQ ⟨label⟩
 	@staticmethod
 	def ipp_jumpifneqs():
 		Syntax.check("label")
@@ -776,31 +784,32 @@ class Instruction:
 		operand1 = frame.load_symb(arg2)
 		operand2 = frame.load_symb(arg3)
 
-		#I think making aritmectics operations with different types int/float should be allowed and the result will be always float
+		# I think making aritmectics operations with different types int/float should be allowed
+		# and the result will be always float
 		if type(operand1) is not type(operand2):
 			errorHandel(53, "Error - semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - incompatible operand types")
 
 		try:
-			operationInt = {
+			operation_int = {
 				"add": int(operand1) + int(operand2),
 				"sub": int(operand1) - int(operand2),
 				"mul": int(operand1) * int(operand2),
-				"idiv": int(operand1) / int(operand2),
+				"idiv": floor(int(operand1) / int(operand2)),
 			}
 
-			operationFloat = {
+			operation_float = {
 				"add": float(operand1) + float(operand2),
 				"sub": float(operand1) - float(operand2),
 				"mul": float(operand1) * float(operand2),
 				"div": float(operand1) / float(operand2),
 			}
 			if type(operand1) is float or type(operand2) is float:
-				frame.modify_var(arg1["frame"], arg1["value"], float(operationFloat[operator]))
+				frame.modify_var(arg1["frame"], arg1["value"], float(operation_float[operator]))
 			else:
-				frame.modify_var(arg1["frame"], arg1["value"], int(operationInt[operator]))
+				frame.modify_var(arg1["frame"], arg1["value"], int(operation_int[operator]))
 		except ZeroDivisionError:
-			errorHandel(57, "Error – Semantic error at line  " + str(
+			errorHandel(57, "Error – Semantic error at line " + str(
 				Instruction.xml_block.attrib["order"]) + " - dividing by zero")
 
 	# ADD ⟨var⟩ ⟨symb1⟩ ⟨symb2⟩
@@ -1022,7 +1031,8 @@ class Instruction:
 				frame.modify_var(arg1["frame"], arg1["value"], None)
 				return
 			else:
-				read = read[:-1]  # removes last \n that adds readline
+				if read[-1] == "\n":
+					read = read[:-1]  # removes last \n that adds readline
 		try:
 			if type_of_input == "bool":
 				frame.modify_var(arg1["frame"], arg1["value"], str(read).lower() == "true")
@@ -1030,6 +1040,8 @@ class Instruction:
 				frame.modify_var(arg1["frame"], arg1["value"], str(read))
 			elif type_of_input == "int":
 				frame.modify_var(arg1["frame"], arg1["value"], int(read))
+			elif type_of_input == "float":
+				frame.modify_var(arg1["frame"], arg1["value"], float.fromhex(read))
 			else:
 				frame.modify_var(arg1["frame"], arg1["value"], None)
 		except:
@@ -1051,6 +1063,8 @@ class Instruction:
 				print("false", end="")
 		elif type(variable_to_write) is int or type(variable_to_write) is str:
 			print(variable_to_write, end="")
+		elif type(variable_to_write) is float:
+			print(float.hex(variable_to_write), end="")
 		elif variable_to_write is None:
 			print("", end="")
 		else:
@@ -1364,7 +1378,7 @@ class Syntax:
 				try:
 					float.fromhex(fnumber)
 					return True
-				except:
+				except ValueError:
 					return False
 		elif arg.attrib["type"] == "bool":
 			if arg.text == "true" or arg.text == "false":
@@ -1399,7 +1413,6 @@ class Syntax:
 				else:
 					new_string += to_convert[position]
 					position += 1
-
 			if '\\' in new_string:
 				return False
 

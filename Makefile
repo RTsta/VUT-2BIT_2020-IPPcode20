@@ -1,11 +1,14 @@
 ZIPNAME=xnacar00
-.PHONY: zip parse_test interpret_test mysrc
+.PHONY: zip parse_test interpret_test mysrc both_test
 	
 parse_test:
-	php test.php --directory=./tests/parse-only/ --parse-only --recursive >./tests/result.html
+	php test.php --directory=./tests/parse-only --parse-only --recursive --jexamxml=./other/jexamxml/jexamxml.jar >./tests/result.html
 
 interpret_test:
-	python3 interpret.py --source=./tests//add/add.src --input=./tests/add/add.in
+	php test.php --directory=./tests/interpret-only/ --int-only --recursive >./tests/result.html
+	
+both_test:
+	php test.php --directory=./tests/both --recursive >./tests/result.html
 	
 mysrc:
 	php parse.php <$(file_path).src >$(file_path).mysrc

@@ -112,6 +112,11 @@ class Arguments
         );
 
         $options = getopt($shortopts, $longopts);
+
+        if ($options == false){
+            exit(10);
+        }
+
         if (array_key_exists("help", $options)) {
             printHelp();
         }
@@ -221,7 +226,7 @@ class Tests
         $directories = array_merge($directories, glob($dir . '/*', GLOB_ONLYDIR));
         $count = count($directories);
 
-        for ($i = 0; $i < $count; $i++) {
+        for ($i = 1; $i < $count; $i++) {
             $tmp = glob($directories[$i] . '/*', GLOB_ONLYDIR);
             $directories = array_merge($directories, $tmp);
 
@@ -231,8 +236,10 @@ class Tests
     }
 }
 
-class HTMLtemplate {
-    public static function printHeader($modeType){
+class HTMLtemplate
+{
+    public static function printHeader($modeType)
+    {
         echo("
 <!DOCTYPE html>
 <html lang=\"en\">
@@ -246,7 +253,7 @@ class HTMLtemplate {
         }
 
         table.resultsTable {
-            border-collapse: collapse;
+            border-spacing:0;
         }
         .resultsTable td, th {
             border: 1px solid #dddddd;
@@ -260,9 +267,10 @@ class HTMLtemplate {
         .correct {
             background-color: #98FB98;
         }
-        .incorrect{
+        #incorrect{
             background-color: #FF9CAF;
-:         }
+            border: 1px solid #B22222;
+            }
         .myfont {
             font-family: Arial, Helvetica, sans-serif;
         }
@@ -271,210 +279,199 @@ class HTMLtemplate {
     <body class='myfont'>
     <table style=\"margin-left:auto;margin-right:auto;\">
         <tr><td><h1>Testing mode: $modeType </h1></td></tr>
-        <tr><td><div>Time: ".date("H:i:s")."</div></td></tr>
-        <tr><td><h2>Results</h2><table class=\"resultsTable\" style=\"border-collapse: collapse;\">
+        <tr><td><div>Time: " . date("H:i:s") . "</div></td></tr>
+        <tr><td><h2>Results</h2><table class='resultsTable'>
             <tr>
                 <th>NO.</th><th></th><th>TOTAL</th><th>NAME</th><th>RET. CODE</th><th>PASSED</th><th>NOTE</th>
             </tr>");
     }
 
-    public static function printTest($testNo,$total,$testName, $retCode,$passed, $note=""){
-        $style = "#FFFFFF";
-        if ($passed == "OK" && $note==""){ $style = "correct";}
-        elseif ($passed == "FAIL"){$style = "incorrect";}
-        echo '<tr class=\"'.$style.'\"><td style="text-align:right;">'.$testNo.'</td>
+    public static function printTest($testNo, $total, $testName, $retCode, $passed, $note = "")
+    {
+        $id = "";
+        if ($passed == "OK" && $note == "") {
+            $id = "";;
+        } elseif ($passed == "FAIL") {
+            $id = "id=\"incorrect\"";
+        }
+        echo ('<tr ' . $id . '><td style="text-align:right;">' . $testNo . '</td>
                 <td>/</td>
-                <td>'.$total.'</td>
-                <td>'.$testName.'</td>
-                <td style="text-align:center;">'.$retCode.'</td>
-                <td>'.$passed.'</td>
-                <td>'.$note.'</td>
-                </tr>';
+                <td>' . $total . '</td>
+                <td>' . $testName . '</td>
+                <td style="text-align:center;">' . $retCode . '</td>
+                <td>' . $passed . '</td>
+                <td>' . $note . '</td>
+                </tr>');
     }
 
-    public static function printStatistics($noOfPassed, $noOfFailed){
-        echo "
+    public static function printStatistics($noOfPassed, $noOfFailed)
+    {
+        echo ('
 </table></td></tr>
 <tr><td><h2>Statistics</h2>
-<table class=\"resultsTable\">
-<tr class='correct'><td>PASSED</td><td>$noOfPassed</td></tr>
-<tr><td>FAILED</td><td>$noOfFailed</td></tr>
+<table class=\'resultsTable\'>
+<tr class=\'correct\'><td>PASSED</td><td>' . $noOfPassed . '</td></tr>
+<tr><td>FAILED</td><td>' . $noOfFailed . '</td></tr>
+<tr><td>SUCCESS</td><td>' . ($noOfPassed / ($noOfPassed + $noOfFailed) * 100) . ' %</td></tr>
 </table></td></tr>
 </table>
-";
+');
     }
 
-    public static function printFooter(){
+    public static function printFooter()
+    {
         echo "
             </body>
             </html>";
     }
 }
 
-
+/* loading program arguments */
 $arg = new Arguments();
 $arg->load();
 
-
+/* making list of all directories with test files*/
 $directoryList = array($arg->getDir());
 if ($arg->getRecursive()) {
     $directoryList = Tests::scanForDirRecursively($arg->getDir());
 }
+
+/* searching for all testfiles in directories*/
 $srcList = array();
 foreach ($directoryList as $oneDirectory) {
     $srcList = array_merge($srcList, Tests::scanForSrc($oneDirectory));
 }
+/* searching and creating all other files that are required */
 foreach ($srcList as $oneSrc) {
     Tests::checkRcFile($oneSrc);
     Tests::checkInFile($oneSrc);
     Tests::checkOutFile($oneSrc);
 }
 
+$noOfPassed = 0;
+$noOfFails = 0;
+
 if ($arg->getParseOnly()) {
-    $noOfPassed = 0;
-    $noOfFails = 0;
     HTMLtemplate::printHeader("parse-only");
     foreach ($srcList as $oneScr) {
-
+        $parse_out = "";
         $testName = substr($oneScr, 0, strrpos($oneScr, '.'));
         $expectedReturnCode = (int)file_get_contents($testName . ".rc");
         $expectedOutput = file_get_contents($testName . ".out");
-        exec("php " . $arg->getParseScriptFile() . " <$testName.src", $parse_out, $parse_ret);
+        exec("php7.4 " . $arg->getParseScriptFile() . " <$testName.src", $parse_out, $parse_ret);
 
 
-        if ($expectedReturnCode == $parse_ret) {
-            if ($parse_ret == 0) {
-                /*
-                $temp2 = false;
-                $temp2 = tmpfile();
-                fwrite($temp2,implode( "\n", $parse_out ));
-                exec("diff ".stream_get_meta_data($temp2)['uri']." ".$testName.".out",$diff_out, $diff_ret);
-                fwrite($temp2,"");
-                fclose($temp2);
-                $temp2 = false;
-                if ($diff_ret == 0){
-                */
-                    HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1),count($srcList),basename($testName),$parse_ret,"OK");
-                    $noOfPassed++;
-                //}
-                //else{
-                //    HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1),count($srcList),basename($testName),$parse_ret,"FAIL","PARSER ERR - EXPECTED: ".$expectedReturnCode."<br> DIFF MSG: ". implode( "<br>", $diff_out ));
-                //    $noOfFails++;
-                //}
-            }
-            else {
-                HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1), count($srcList), basename($testName), $parse_ret, "OK");
-                $noOfPassed++;
-            }
+        if ($expectedReturnCode == $parse_ret && $parse_ret == 0) {
+            $diff_out = "";
+             $temp2 = false;
+             $temp2 = tmpfile();
+             fwrite($temp2,implode( "\n", $parse_out ));
+
+             exec("java -jar ".$arg->getJexamxml()." ".stream_get_meta_data($temp2)['uri']." ".$testName.".out",$diff_out,$diff_ret);
+             fwrite($temp2,"");
+             fclose($temp2);
+             $temp2 = false;
+             if ($diff_ret == 0){
+                 HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1), count($srcList), basename($testName), $parse_ret, "OK");
+                 $noOfPassed++;
+             } else{
+                 HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1),count($srcList),basename($testName),$parse_ret,"FAIL","PARSER ERR - EXPECTED: ".$expectedReturnCode."<br> DIFF MSG: ". implode( "<br>", $diff_out ));
+                 $noOfFails++;
+             }
+        }else if ($expectedReturnCode == $parse_ret && $parse_ret != 0) {
+            HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1), count($srcList), basename($testName), $parse_ret, "OK");
+            $noOfPassed++;
         } else {
-            HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1),count($srcList),basename($testName),$parse_ret,"FAIL");
+            HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1), count($srcList), basename($testName), $parse_ret, "FAIL");
             $noOfFails++;
         }
     }
-
-HTMLtemplate::printStatistics($noOfPassed,$noOfFails);
-}
-else if ($arg->getIntOnly()) {
-    $noOfPassed = 0;
-    $noOfFails = 0;
+} else if ($arg->getIntOnly()) {
     HTMLtemplate::printHeader("int-only");
     foreach ($srcList as $oneScr) {
+        $interpret_out = "";
+        $testName = substr($oneScr, 0, strrpos($oneScr, '.'));
+        $expectedReturnCode = (int)file_get_contents($testName . ".rc");
+        $expectedOutput = file_get_contents($testName . ".out");
+        exec("python3.8 " . $arg->getIntScriptFile() . " --source=$testName.src --input=$testName.in", $interpret_out, $interpret_ret);
+
+        if ($expectedReturnCode == $interpret_ret && $interpret_ret == 0) {
+            $diff_out = "";
+            $temp2 = false;
+            $temp2 = tmpfile();
+            fwrite($temp2, implode("\n", $interpret_out));
+
+            exec("diff " . stream_get_meta_data($temp2)['uri'] . " " . $testName . ".out", $diff_out, $diff_ret);
+            fwrite($temp2, "");
+            fclose($temp2);
+            $temp2 = false;
+            if ($diff_ret == 0) {
+                HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1), count($srcList), basename($testName), $interpret_ret, "OK");
+                $noOfPassed++;
+            } else {
+                HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1), count($srcList), basename($testName), $interpret_ret, "FAIL", "INTERPRET ERR - EXPECTED: " . $expectedReturnCode . "<br> DIFF MSG: " . implode("<br>", $diff_out));
+                $noOfFails++;
+            }
+        } else if ($expectedReturnCode == $interpret_ret && $interpret_ret != 0) {
+            HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1), count($srcList), basename($testName), $interpret_ret, "OK");
+            $noOfPassed++;
+        } else {
+            HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1), count($srcList), basename($testName), $interpret_ret, "FAIL", "EXPECTED: " . $expectedReturnCode);
+            $noOfFails++;
+        }
+    }
+} else {
+    HTMLtemplate::printHeader("both");
+    foreach ($srcList as $oneScr) {
+        $parse_out = "";
+        $interpret_out = "";
+        $temp = false;
 
         $testName = substr($oneScr, 0, strrpos($oneScr, '.'));
         $expectedReturnCode = (int)file_get_contents($testName . ".rc");
         $expectedOutput = file_get_contents($testName . ".out");
-        exec("python3 " . $arg->getIntScriptFile() . " --source=$testName.src --input=$testName.in", $parse_out, $parse_ret);
 
-        if ($expectedReturnCode == $parse_ret) {
-            if ($parse_ret == 0) {
-                HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1),count($srcList),basename($testName),$parse_ret,"OK");
+        exec("php7.4 " . $arg->getParseScriptFile() . " <$testName.src", $parse_out, $parse_ret);
+        if ($parse_ret != 0) {
+            HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1), count($srcList), basename($testName), $parse_ret, "FAIL", "PARSER");
+            $noOfFails++;
+            continue;
+        }
+
+        $temp = tmpfile();
+        fwrite($temp, implode("\n", $parse_out));
+        exec("python3.8 " . $arg->getIntScriptFile() . " --input=$testName.in --source=" . stream_get_meta_data($temp)['uri'], $interpret_out, $interpret_ret);
+
+        fwrite($temp, "");
+        fclose($temp);
+        $temp = false;
+        if ($expectedReturnCode == $interpret_ret && $expectedReturnCode == 0) {
+            $diff_out = "";
+            $temp2 = false;
+            $temp2 = tmpfile();
+            fwrite($temp2, implode("\n", $interpret_out));
+
+            exec("diff " . stream_get_meta_data($temp2)['uri'] . " " . $testName . ".out", $diff_out, $diff_ret);
+            fwrite($temp2, "");
+            fclose($temp2);
+            $temp2 = false;
+            if ($diff_ret == 0) {
+                HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1), count($srcList), basename($testName), $interpret_ret, "OK");
                 $noOfPassed++;
+            } else {
+                HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1), count($srcList), basename($testName), $interpret_ret, "FAIL", "INTERPRET ERR - EXPECTED: " . $expectedReturnCode . "<br> DIFF MSG: " . implode("<br>", $diff_out));
+                $noOfFails++;
             }
-            else {
-                HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1), count($srcList), basename($testName), $parse_ret, "OK");
-                $noOfPassed++;
-            }
+        } else if ($expectedReturnCode == $interpret_ret && $expectedReturnCode != 0) {
+            HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1), count($srcList), basename($testName), $interpret_ret, "OK");
+            $noOfPassed++;
         } else {
-            HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1),count($srcList),basename($testName),$parse_ret,"FAIL","EXPECTED: ".$expectedReturnCode);
+            HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1), count($srcList), basename($testName), $interpret_ret, "FAIL", "INTERPRET ERR - EXPECTED: " . $expectedReturnCode);
             $noOfFails++;
         }
     }
-    HTMLtemplate::printStatistics($noOfPassed,$noOfFails);
 }
-else {
-        $noOfPassed = 0;
-        $noOfFails = 0;
-        HTMLtemplate::printHeader("both");
-        foreach ($srcList as $oneScr) {
-            $parse_out = "";
-            $interpret_out = "";
-            $temp = false;
 
-            $testName = substr($oneScr, 0, strrpos($oneScr, '.'));
-            $expectedReturnCode = (int)file_get_contents($testName . ".rc");
-            $expectedOutput = file_get_contents($testName . ".out");
-
-            exec("php " . $arg->getParseScriptFile() . " <$testName.src", $parse_out, $parse_ret);
-
-            if ($parse_ret != 0){
-                HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1),count($srcList),basename($testName),$parse_ret,"FAIL","PARSER");
-                $noOfFails++;
-                continue;
-            }
-            //todo pokud už se shoduje return code s parseru s výsledným ret codem
-            $temp = tmpfile();
-            fwrite($temp,implode( "\n", $parse_out ));
-            exec("python3 " . $arg->getIntScriptFile() . " --input=$testName.in --source=".stream_get_meta_data($temp)['uri'], $interpret_out, $interpret_ret);
-
-            fwrite($temp,"");
-            fclose($temp);
-            $temp = false;
-            if ($expectedReturnCode == $interpret_ret) {
-                if ($expectedReturnCode == 0) {
-                    $diff_out = "";
-                    $temp2 = false;
-                    $temp2 = tmpfile();
-                    fwrite($temp2,implode( "\n", $interpret_out ));
-                    exec("diff ".stream_get_meta_data($temp2)['uri']." ".$testName.".out",$diff_out, $diff_ret);
-                    fwrite($temp2,"");
-                    fclose($temp2);
-                    $temp2 = false;
-                    if ($diff_ret == 0){
-                        HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1),count($srcList),basename($testName),$interpret_ret,"OK");
-                        $noOfPassed++;
-                    }
-                    else{
-                        HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1),count($srcList),basename($testName),$interpret_ret,"FAIL","INTERPRET ERR - EXPECTED: ".$expectedReturnCode."<br> DIFF MSG: ". implode( "<br>", $diff_out ));
-                        $noOfFails++;
-                    }
-
-                }
-                else {
-                    HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1), count($srcList), basename($testName), $interpret_ret, "OK");
-                    $noOfPassed++;
-                }
-            } else {
-                HTMLtemplate::printTest(($noOfPassed + $noOfFails + 1),count($srcList),basename($testName),$interpret_ret,"FAIL","INTERPRET ERR - EXPECTED: ".$expectedReturnCode);
-                $noOfFails++;
-            }
-        }
-    HTMLtemplate::printStatistics($noOfPassed,$noOfFails);
-}
+HTMLtemplate::printStatistics($noOfPassed, $noOfFails);
 HTMLtemplate::printFooter();
-
-/*
- * Doporučení: Pro porovnávání mezi skutečným výstupem a referenčním výstupem v souboru s příponou out použijte unixový
- * nástroj příkazové řádky diff.
- * */
-//do tests
-
-/*
- * Požadavky na výstupní HTML verze 5: Přehledová stránka o úspěšnosti/neúspěšnosti jed- notlivých testů a
- * celých adresářů bude prohlédnuta ručně opravujícím, takže bude hodnocena její přehlednost a intuitivnost.
- * Mělo by být na první pohled zřejmé, které testy uspěly a které nikoli, a zda případně uspěly všechny testy
- * (případně i po jednotlivých adresářích). Výsledná stránka nesmí načítat externí zdroje14 a musí být možné ji zobrazit
- * v běžném prohlížeči.
- * */
-//print results
-
 ?>
