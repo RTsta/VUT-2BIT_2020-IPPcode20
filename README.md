@@ -2,6 +2,14 @@
 ## Autor
 - Arthur Nácar (xnacar00)
 
+## Hodnocení
+|část                                               |hodnocení|
+|---------------------------------------------------|--------:|
+|1. úloha v PHP 7.4                                 |    7 / 7|
+|2. úloha v Pythonu 3.8 a testovací skript v PHP 7.4|10.3 / 13|
+|Bonusové body                                      |  1.7 / 5|
+
+
 ## Popis
 ### Parser (parser.php) 
 Následující dokumentace popisuje parser nestrukturovaného imperativního jazyka **IPPcode20**. Cílem byla syntaktická kontrola a převod vstupního jazyka do jeho XML reprezentace.  
